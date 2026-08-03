@@ -17,6 +17,7 @@ class Machine {
     required this.ctaLabel,
     required this.specs,
     required this.year,
+    this.image,
     this.icon = Icons.precision_manufacturing,
   });
 
@@ -27,12 +28,21 @@ class Machine {
   final String ctaLabel;
   final List<MachineSpec> specs;
   final String year;
+
+  /// Asset path for the listing photo. Falls back to [icon] on a brushed-steel
+  /// panel when null or when the asset is missing.
+  final String? image;
   final IconData icon;
 }
 
 /// Static catalogue used until the listings API is connected.
 class MachineData {
   MachineData._();
+
+  static const String _photos = 'assets/images/machines';
+
+  /// Wide workshop shot behind the home-page promo banner.
+  static const String bannerPhoto = '$_photos/workshop_banner.jpg';
 
   static const List<Machine> featured = [
     Machine(
@@ -42,6 +52,7 @@ class MachineData {
       note: 'EXCL. SHIPPING',
       ctaLabel: 'Request Technical Audit',
       year: '2019',
+      image: '$_photos/haas_vf2.jpg',
       icon: Icons.precision_manufacturing,
       specs: [
         MachineSpec(icon: Icons.factory_outlined, label: 'BRAND', value: 'HAAS'),
@@ -56,6 +67,7 @@ class MachineData {
       note: 'INSTALL INCLUDED',
       ctaLabel: 'View Configuration Sheet',
       year: '2021',
+      image: '$_photos/dmg_mori_nhx.jpg',
       icon: Icons.settings_suggest_outlined,
       specs: [
         MachineSpec(icon: Icons.factory_outlined, label: 'BRAND', value: 'DMG MORI'),
@@ -73,6 +85,7 @@ class MachineData {
       note: '',
       ctaLabel: 'View',
       year: '2016',
+      image: '$_photos/mazak_quick_turn.jpg',
       icon: Icons.rotate_right,
       specs: [],
     ),
@@ -83,6 +96,7 @@ class MachineData {
       note: '',
       ctaLabel: 'View',
       year: '2018',
+      image: '$_photos/fanuc_robodrill.jpg',
       icon: Icons.smart_toy_outlined,
       specs: [],
     ),
@@ -93,6 +107,7 @@ class MachineData {
       note: '',
       ctaLabel: 'View',
       year: '2020',
+      image: '$_photos/doosan_lynx.jpg',
       icon: Icons.hardware_outlined,
       specs: [],
     ),
@@ -103,6 +118,7 @@ class MachineData {
       note: '',
       ctaLabel: 'View',
       year: '2017',
+      image: '$_photos/okuma_genos.jpg',
       icon: Icons.build_circle_outlined,
       specs: [],
     ),

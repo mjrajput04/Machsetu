@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Palette sampled from the MachSetu logo — royal blue, brushed steel and
-/// gunmetal. The accent replaces what used to be an orange highlight.
+/// gunmetal, with an industrial orange highlight.
 class AppColors {
   AppColors._();
 
@@ -10,10 +10,10 @@ class AppColors {
   static const Color navyDark = Color(0xFF0A2244);
   static const Color navyDeep = Color(0xFF061627);
 
-  /// The bright electric blue that rims the logo's arc.
-  static const Color accent = Color(0xFF2E6FD8);
-  static const Color accentDark = Color(0xFF1E4FA8);
-  static const Color accentGlow = Color(0xFF4A8BF0);
+  /// Industrial orange — CTAs, the FAB, the active tab and section links.
+  static const Color accent = Color(0xFFF97316);
+  static const Color accentDark = Color(0xFFC2410C);
+  static const Color accentGlow = Color(0xFFFB923C);
 
   // Brushed steel
   static const Color steel = Color(0xFF8E99A4);

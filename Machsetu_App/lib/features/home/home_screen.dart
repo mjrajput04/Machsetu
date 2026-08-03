@@ -248,62 +248,97 @@ class _PromoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
         gradient: AppColors.bannerGradient,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.passthrough,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.accent,
-              borderRadius: BorderRadius.circular(5),
+          // Workshop photo sits behind the copy; the scrim keeps the text
+          // legible no matter how busy the shot is.
+          Positioned.fill(
+            child: Image.asset(
+              MachineData.bannerPhoto,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
-            child: const Text(
-              'VERIFIED LISTINGS',
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: Colors.white,
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    AppColors.navyDark.withValues(alpha: 0.96),
+                    AppColors.navyDark.withValues(alpha: 0.82),
+                    AppColors.navyDeep.withValues(alpha: 0.55),
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          const Text(
-            'Mastering Precision,\nMarket-Ready.',
-            style: TextStyle(
-              fontSize: 20,
-              height: 1.25,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: const Text(
+                    'VERIFIED LISTINGS',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Mastering Precision,\nMarket-Ready.',
+                  style: TextStyle(
+                    fontSize: 20,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Access 450+ certified CNC and VMC centers with full '
+                  'maintenance history and performance logs.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.5,
+                    color: Colors.white.withValues(alpha: 0.78),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    minimumSize: const Size(0, 42),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: onExplore,
+                  child: const Text('Explore Manifest'),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Access 450+ certified CNC and VMC centers with full maintenance '
-            'history and performance logs.',
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.5,
-              color: Colors.white.withValues(alpha: 0.72),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              minimumSize: const Size(0, 42),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: onExplore,
-            child: const Text('Explore Manifest'),
           ),
         ],
       ),

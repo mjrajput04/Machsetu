@@ -80,6 +80,7 @@ flutter:
   # automatically, no pubspec change needed per file.
   assets:
     - assets/images/
+    - assets/images/machines/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

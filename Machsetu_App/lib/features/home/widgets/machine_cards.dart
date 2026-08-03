@@ -3,19 +3,42 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/machines.dart';
 
-/// Placeholder "photo" block — swap for a CachedNetworkImage once the
-/// listings API returns real photography.
+/// Listing photo. Renders the bundled asset when the listing has one and
+/// falls back to a brushed-steel panel with the machine icon otherwise — so a
+/// missing or not-yet-uploaded image never breaks the card layout.
 class MachinePhoto extends StatelessWidget {
-  const MachinePhoto({super.key, required this.icon, this.height = 170});
+  const MachinePhoto({
+    super.key,
+    required this.icon,
+    this.image,
+    this.height = 170,
+  });
 
   final IconData icon;
+  final String? image;
   final double height;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final path = image;
+
+    return SizedBox(
       height: height,
       width: double.infinity,
+      child: path == null
+          ? _fallback()
+          : Image.asset(
+              path,
+              height: height,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _fallback(),
+            ),
+    );
+  }
+
+  Widget _fallback() {
+    return Container(
       decoration: const BoxDecoration(gradient: AppColors.machineGradient),
       child: Center(
         child: Icon(
@@ -55,7 +78,7 @@ class FeaturedMachineCard extends StatelessWidget {
         children: [
           Stack(
             children: [
-              MachinePhoto(icon: machine.icon),
+              MachinePhoto(icon: machine.icon, image: machine.image),
               Positioned(
                 top: 12,
                 right: 12,
@@ -235,7 +258,11 @@ class _CompactMachineCardState extends State<CompactMachineCard> {
           children: [
             Stack(
               children: [
-                MachinePhoto(icon: widget.machine.icon, height: 104),
+                MachinePhoto(
+                  icon: widget.machine.icon,
+                  image: widget.machine.image,
+                  height: 104,
+                ),
                 Positioned(
                   top: 8,
                   right: 8,
