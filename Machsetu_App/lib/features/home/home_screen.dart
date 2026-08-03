@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/brand_logo.dart';
+import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/machines.dart';
 import 'widgets/machine_cards.dart';
 
@@ -31,26 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Row(
-          children: [
-            const BrandLogo(size: 30),
-            const SizedBox(width: 10),
-            const BrandWordmark(fontSize: 16, letterSpacing: 0.8),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => _todo('Notifications'),
-            icon: const Badge(
-              backgroundColor: AppColors.accent,
-              smallSize: 8,
-              child: Icon(Icons.notifications_none_rounded),
-            ),
-          ),
-          const SizedBox(width: 6),
-        ],
+      appBar: MachSetuAppBar(
+        onNotifications: () => _todo('Notifications'),
       ),
       body: RefreshIndicator(
         color: AppColors.navy,
@@ -381,18 +363,25 @@ class _SectionHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: AppColors.navy,
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navy,
+            ),
           ),
         ),
+        const SizedBox(width: 10),
         GestureDetector(
           onTap: onAction,
           child: Text(
             action,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,

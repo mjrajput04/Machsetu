@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../search/search_screen.dart';
 import 'home_screen.dart';
 
 /// Bottom-navigation container that hosts the marketplace tabs.
@@ -30,11 +31,7 @@ class _MainShellState extends State<MainShell> {
         index: _index,
         children: [
           const HomeScreen(),
-          const _ComingSoon(
-            icon: Icons.search,
-            title: 'Search Manifests',
-            message: 'Filter listings by brand, spindle, travel and year.',
-          ),
+          const SearchScreen(),
           const _ComingSoon(
             icon: Icons.shopping_cart_outlined,
             title: 'Your Cart',
@@ -55,6 +52,7 @@ class _MainShellState extends State<MainShell> {
       ),
       floatingActionButton: _index == 0
           ? FloatingActionButton(
+              heroTag: 'home-list-machine-fab',
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               onPressed: () => ScaffoldMessenger.of(context).showSnackBar(

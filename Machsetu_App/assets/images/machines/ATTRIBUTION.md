@@ -7,7 +7,8 @@ share-alike. Check each source page before shipping to production, or replace
 these files with your own listing photos.
 
 Replacing is a drop-in: keep the same filename and the app picks it up on the
-next build. Paths are declared in `lib/features/home/data/machines.dart`.
+next build. Paths are declared in `lib/features/home/data/machines.dart`
+(home) and `lib/features/search/data/search_results.dart` (search results).
 
 | File | Used for | Wikimedia Commons source |
 |------|----------|--------------------------|
@@ -17,7 +18,9 @@ next build. Paths are declared in `lib/features/home/data/machines.dart`.
 | `mazak_quick_turn.jpg` | Mazak Quick Turn 200 | `Small CNC Turning Center.jpg` |
 | `fanuc_robodrill.jpg` | Fanuc RoboDrill A-D21 | `Vertical MC Micro-Center V (21032515040).jpg` |
 | `doosan_lynx.jpg` | Doosan Lynx 2100 | `Tsugami CNC Lathe.jpg` |
-| `okuma_genos.jpg` | Okuma Genos M560 | `Vertical MC Power Center V-10N (21032515033).jpg` |
+| `okuma_genos.jpg` | Okuma Genos M560 + Mazak VCN-530C (search) | `Vertical MC Power Center V-10N (21032515033).jpg` |
+| `dmg_cmx_1100v.jpg` | DMG Mori CMX 1100 V (search) | `DeckelMaho-DMU50e-MachiningCenter.jpg` |
+| `haas_vf2ss.jpg` | Haas VF-2SS (search) | `SMTCL VMC0656e 5-axis machining center 20260331123404.jpg` |
 
 Source page for any file: `https://commons.wikimedia.org/wiki/File:<name from the table above>`
 
