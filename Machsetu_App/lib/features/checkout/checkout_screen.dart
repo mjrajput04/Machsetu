@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/services/shell_tabs.dart';
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../cart/data/cart_store.dart';
+import '../orders/data/order.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -50,82 +51,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    final reference = CartStore.instance.orderReference;
     setState(() => _placing = true);
     await Future<void>.delayed(const Duration(milliseconds: 900));
     if (!mounted) return;
     setState(() => _placing = false);
 
-    await _showConfirmation(reference);
-    if (!mounted) return;
-
-    // Basket is consumed by the order, so send the buyer back to Home.
+    // Snapshot the basket into an order, then hand off to the confirmation.
+    final order = OrderStore.instance.place(CartStore.instance);
     CartStore.instance.clear();
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    ShellTabs.go(ShellTabs.home);
-  }
 
-  Future<void> _showConfirmation(String reference) {
-    return showModalBottomSheet<void>(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              height: 68,
-              width: 68,
-              decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_circle,
-                size: 38,
-                color: AppColors.success,
-              ),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'Order Placed',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navy,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your inquiry manifest $reference has been sent. A procurement '
-              'officer will confirm pricing after the technical audit.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () => Navigator.of(sheetContext).pop(),
-              child: const Text('Done'),
-            ),
-          ],
-        ),
-      ),
+    await Navigator.of(context).pushReplacementNamed(
+      AppRoutes.orderSuccess,
+      arguments: order,
     );
   }
 
@@ -163,9 +100,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
           return Form(
             key: _formKey,
-            child: ListView(
+            // A lazy ListView would dispose off-screen fields, unregistering
+            // them from the Form and letting an empty form validate.
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-              children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 const _SecureBanner(),
                 const SizedBox(height: 18),
                 _Section(
@@ -295,7 +236,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     color: AppColors.textMuted,
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
           );
         },

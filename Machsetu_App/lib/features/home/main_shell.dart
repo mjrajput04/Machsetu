@@ -6,6 +6,7 @@ import '../../core/services/shell_tabs.dart';
 import '../../core/theme/app_colors.dart';
 import '../cart/cart_screen.dart';
 import '../cart/data/cart_store.dart';
+import '../orders/orders_screen.dart';
 import '../search/search_screen.dart';
 import 'home_screen.dart';
 
@@ -70,11 +71,7 @@ class _MainShellState extends State<MainShell> {
           const HomeScreen(),
           const SearchScreen(),
           const CartScreen(),
-          const _ComingSoon(
-            icon: Icons.receipt_long_outlined,
-            title: 'Orders',
-            message: 'Track audits, negotiations and logistics milestones.',
-          ),
+          const OrdersScreen(),
           _ProfileTab(onLogout: _logout),
         ],
       ),
@@ -185,63 +182,6 @@ class _TabItem {
   final IconData inactive;
   final IconData active;
   final String label;
-}
-
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                height: 76,
-                width: 76,
-                decoration: BoxDecoration(
-                  color: AppColors.navy.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Icon(icon, size: 34, color: AppColors.navy),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.navy,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _ProfileTab extends StatelessWidget {

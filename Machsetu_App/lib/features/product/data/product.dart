@@ -58,6 +58,7 @@ class Product {
     required this.tags,
     required this.documents,
     this.leadTime = '4-6 weeks',
+    this.equipmentType = 'Industrial Equipment',
     this.icon = Icons.precision_manufacturing,
   });
 
@@ -78,6 +79,10 @@ class Product {
 
   /// Quoted delivery window, shown on the cart line.
   final String leadTime;
+
+  /// Machine category carried over from the listing — "Vertical Machining
+  /// Center", "CNC Lathe", … Shown on the order confirmation.
+  final String equipmentType;
   final IconData icon;
 
   /// [price] as a number so the cart can total it up.
@@ -142,6 +147,7 @@ class ProductCatalog {
     String priceNote = 'SHIPPING & INSTALLATION',
     String series = 'PRECISION SERIES',
     String leadTime = '4-6 weeks',
+    String equipmentType = 'Industrial Equipment',
     String? image,
     IconData icon = Icons.precision_manufacturing,
   }) {
@@ -154,6 +160,7 @@ class ProductCatalog {
       price: price,
       priceNote: priceNote,
       leadTime: leadTime,
+      equipmentType: equipmentType,
       icon: icon,
       images: [?image, ..._contextShots],
       heroSpecs: _heroSpecs,

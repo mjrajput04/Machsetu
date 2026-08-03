@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
         brand: machine.brand,
         price: machine.price,
         priceNote: machine.note.isEmpty ? 'SHIPPING & INSTALLATION' : machine.note,
+        equipmentType: machine.subtitle,
         image: machine.image,
         icon: machine.icon,
       ),

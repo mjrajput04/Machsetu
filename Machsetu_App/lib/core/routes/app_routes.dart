@@ -8,6 +8,9 @@ import '../../features/auth/reset_password_screen.dart';
 import '../../features/home/main_shell.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/listings/machine_listing_screen.dart';
+import '../../features/orders/data/order.dart';
+import '../../features/orders/order_success_screen.dart';
+import '../../features/orders/order_tracking_screen.dart';
 import '../../features/product/data/product.dart';
 import '../../features/product/product_detail_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -25,6 +28,8 @@ class AppRoutes {
   static const String machines = '/machines';
   static const String product = '/product';
   static const String checkout = '/checkout';
+  static const String orderSuccess = '/order-success';
+  static const String orderTracking = '/order-tracking';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -52,6 +57,16 @@ class AppRoutes {
         return _slide(const MachineListingScreen(), settings);
       case checkout:
         return _slide(const CheckoutScreen(), settings);
+      case orderSuccess:
+        return _fade(
+          OrderSuccessScreen(order: settings.arguments as Order),
+          settings,
+        );
+      case orderTracking:
+        return _slide(
+          OrderTrackingScreen(order: settings.arguments as Order),
+          settings,
+        );
       case product:
         return _slide(
           ProductDetailScreen(product: settings.arguments as Product),

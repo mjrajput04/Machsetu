@@ -7,6 +7,9 @@ import 'package:machsetu_app/core/services/shell_tabs.dart';
 import 'package:machsetu_app/core/theme/app_theme.dart';
 import 'package:machsetu_app/core/utils/currency.dart';
 import 'package:machsetu_app/features/checkout/checkout_screen.dart';
+import 'package:machsetu_app/features/orders/data/order.dart';
+import 'package:machsetu_app/features/orders/order_success_screen.dart';
+import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/cart/data/cart_store.dart';
 import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
@@ -307,6 +310,129 @@ void main() {
 
     expect(find.text('Place Order'), findsOneWidget);
     expect(find.text(Rupees.format(cart.total)), findsOneWidget);
+  });
+
+  testWidgets('an empty checkout form is rejected', (tester) async {
+    final cart = CartStore.instance..clear();
+    OrderStore.instance.clear();
+    cart.add(
+      ProductCatalog.from(
+        title: 'Haas VF-2',
+        brand: 'Haas Automation',
+        price: '₹57,50,000',
+      ),
+    );
+    addTearDown(() {
+      cart.clear();
+      OrderStore.instance.clear();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const CheckoutScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Place Order'),
+      find.byType(Scrollable).first,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Place Order'));
+    await tester.pumpAndSettle();
+
+    // Fields scrolled out of view must still block submission.
+    expect(find.byType(OrderSuccessScreen), findsNothing);
+    expect(OrderStore.instance.isEmpty, isTrue);
+    expect(find.text('Full name is required'), findsOneWidget);
+  });
+
+  testWidgets('placing an order shows confirmation, then tracking', (
+    tester,
+  ) async {
+    final cart = CartStore.instance..clear();
+    OrderStore.instance.clear();
+    cart.add(
+      ProductCatalog.from(
+        title: 'Haas VF-2',
+        brand: 'Haas Automation',
+        price: '₹57,50,000',
+        equipmentType: 'CNC Precision Lathe',
+      ),
+    );
+    addTearDown(() {
+      cart.clear();
+      OrderStore.instance.clear();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const CheckoutScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Future<void> fill(String label, String value) async {
+      await tester.enterText(
+        find.widgetWithText(TextFormField, label).last,
+        value,
+      );
+    }
+
+    final page = find.byType(Scrollable).first;
+    await fill('e.g. Johnathan Miller', 'Rajesh Kumar');
+    await fill('+91 98765-43210', '9876543210');
+    await fill('Apex Manufacturing Ltd.', 'Apex Manufacturing');
+    await fill('GSTIN-9922883311', 'GSTIN9922883311');
+    await fill('Plot 44, Industrial Area Phase II', 'Plot 44');
+    await fill('Pune', 'Pune');
+    await fill('Maharashtra', 'Maharashtra');
+    await fill('48201', '411001');
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Place Order'),
+      page,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Place Order'));
+    await tester.pumpAndSettle();
+
+    // Confirmation carries the order through, and the cart is consumed.
+    expect(find.byType(OrderSuccessScreen), findsOneWidget);
+    expect(find.text('Order Submitted Successfully'), findsOneWidget);
+    expect(cart.isEmpty, isTrue);
+    expect(OrderStore.instance.orders.length, 1);
+
+    final order = OrderStore.instance.orders.first;
+    expect(find.text(order.reference), findsOneWidget);
+
+    final successPage = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('Track Order'),
+      successPage,
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CNC Precision Lathe'), findsOneWidget);
+    expect(find.text('Expedited Freight'), findsOneWidget);
+
+    await tester.tap(find.text('Track Order'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OrderTrackingScreen), findsOneWidget);
+    expect(find.text('Order ${order.trackingId}'), findsOneWidget);
+    expect(find.text('Current Status: Inquiry Received'), findsOneWidget);
+    expect(find.text('Procurement Progress'), findsOneWidget);
+    expect(find.text('ACTIVE'), findsOneWidget);
+    expect(find.text('Under Review'), findsOneWidget);
+    expect(find.text('Delivered'), findsOneWidget);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

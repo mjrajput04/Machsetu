@@ -103,6 +103,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   title: listing.title,
                   brand: listing.brand,
                   price: listing.price,
+                  // Subtitle is "<type> • <year>" — the type is enough here.
+                  equipmentType: listing.subtitle.split('•').first.trim(),
                   image: listing.image,
                   icon: listing.icon,
                 ),

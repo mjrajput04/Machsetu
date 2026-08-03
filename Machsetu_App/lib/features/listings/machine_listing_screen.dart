@@ -81,6 +81,7 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
                               brand: listing.brand,
                               price: listing.price,
                               priceNote: listing.priceNote,
+                              equipmentType: listing.category,
                               image: listing.image,
                               icon: listing.icon,
                             ),
