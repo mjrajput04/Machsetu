@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
+import '../../core/services/shell_tabs.dart';
 import '../../core/theme/app_colors.dart';
 import '../cart/cart_screen.dart';
 import '../cart/data/cart_store.dart';
@@ -17,7 +18,30 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  int _index = 0;
+  int _index = ShellTabs.selected.value;
+
+  @override
+  void initState() {
+    super.initState();
+    ShellTabs.selected.addListener(_onTabRequested);
+  }
+
+  @override
+  void dispose() {
+    ShellTabs.selected.removeListener(_onTabRequested);
+    super.dispose();
+  }
+
+  /// Another screen asked for a tab — e.g. "View Cart" from the product page.
+  void _onTabRequested() {
+    if (!mounted) return;
+    setState(() => _index = ShellTabs.selected.value);
+  }
+
+  void _select(int index) {
+    ShellTabs.selected.value = index;
+    setState(() => _index = index);
+  }
 
   static const List<_TabItem> _tabs = [
     _TabItem(Icons.home_outlined, Icons.home_rounded, 'Home'),
@@ -79,7 +103,7 @@ class _MainShellState extends State<MainShell> {
                 for (var i = 0; i < _tabs.length; i++)
                   Expanded(
                     child: InkWell(
-                      onTap: () => setState(() => _index = i),
+                      onTap: () => _select(i),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

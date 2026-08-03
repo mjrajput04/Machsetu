@@ -59,7 +59,10 @@ class FeaturedMachineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      // The whole card opens the product, not just the CTA button.
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
@@ -203,6 +206,7 @@ class FeaturedMachineCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

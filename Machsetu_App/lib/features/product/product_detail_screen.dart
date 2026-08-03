@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/shell_tabs.dart';
 import '../../core/theme/app_colors.dart';
 import '../cart/data/cart_store.dart';
 import '../home/data/machines.dart';
@@ -63,6 +64,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     );
   }
 
+  /// Unwinds every pushed product page and lands on the shell's Cart tab.
+  void _openCart() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    ShellTabs.go(ShellTabs.cart);
+  }
+
   void _addToCart() {
     CartStore.instance.add(widget.product);
     ScaffoldMessenger.of(context)
@@ -73,7 +81,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           action: SnackBarAction(
             label: 'VIEW CART',
             textColor: AppColors.accentGlow,
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: _openCart,
           ),
         ),
       );

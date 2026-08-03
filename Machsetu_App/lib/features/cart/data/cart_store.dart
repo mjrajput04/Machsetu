@@ -44,6 +44,10 @@ class CartStore extends ChangeNotifier {
 
   double get brokerage => _items.isEmpty ? 0 : 1120;
 
+  /// Shipping and brokerage combined — checkout shows them as one line, so
+  /// this keeps its total identical to the cart's.
+  double get freight => shipping + brokerage;
+
   static const double gstRate = 0.18;
 
   /// GST applies to the goods plus the service charges, matching the quote
@@ -60,6 +64,10 @@ class CartStore extends ChangeNotifier {
     );
     return '#IN-${(seed.abs() % 900000 + 100000)}';
   }
+
+  /// Checkout-facing reference for the same basket.
+  String get orderReference =>
+      '#ORD-2026-${transactionId.substring(transactionId.length - 4)}';
 
   /// Adds the machine, or bumps its quantity when it is already in the cart.
   void add(Product product) {

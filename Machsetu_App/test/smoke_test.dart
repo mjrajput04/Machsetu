@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:machsetu_app/core/routes/app_routes.dart';
+import 'package:machsetu_app/core/services/shell_tabs.dart';
 import 'package:machsetu_app/core/theme/app_theme.dart';
 import 'package:machsetu_app/core/utils/currency.dart';
+import 'package:machsetu_app/features/checkout/checkout_screen.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/cart/data/cart_store.dart';
 import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
@@ -16,6 +18,9 @@ void main() {
   // Phone-sized viewport so overflow assertions reflect a real handset.
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    // Both are process-wide singletons — reset so tests stay independent.
+    ShellTabs.go(ShellTabs.home);
+    CartStore.instance.clear();
     final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
         .views
         .first;
@@ -195,6 +200,113 @@ void main() {
     expect(Rupees.format(cart.brokerage), '₹1,120.00');
     expect(Rupees.format(cart.gst), '₹24,347.70');
     expect(Rupees.format(cart.total), '₹1,59,612.70');
+  });
+
+  testWidgets('tapping the featured card body opens the product page', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MainShell(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap the card's title, not its CTA button.
+    await tester.dragUntilVisible(
+      find.text('Haas VF-2 Super Speed'),
+      find.byType(Scrollable).first,
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Haas VF-2 Super Speed'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProductDetailScreen), findsOneWidget);
+  });
+
+  testWidgets('View Cart from the product page lands on the cart tab', (
+    tester,
+  ) async {
+    CartStore.instance.clear();
+    ShellTabs.go(ShellTabs.home);
+    addTearDown(() {
+      CartStore.instance.clear();
+      ShellTabs.go(ShellTabs.home);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MainShell(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Haas VF-2 Super Speed'),
+      find.byType(Scrollable).first,
+      const Offset(0, -120),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Haas VF-2 Super Speed'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Cart'));
+    // Let the snackbar finish sliding in before tapping its action.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
+
+    expect(find.text('VIEW CART'), findsOneWidget);
+    await tester.tap(find.text('VIEW CART'));
+    await tester.pumpAndSettle();
+
+    // Back on the shell, showing the cart.
+    expect(find.byType(ProductDetailScreen), findsNothing);
+    expect(ShellTabs.selected.value, ShellTabs.cart);
+    expect(find.text('Procurement Cart'), findsOneWidget);
+  });
+
+  testWidgets('checkout mirrors the cart total', (tester) async {
+    final cart = CartStore.instance..clear();
+    cart.add(
+      ProductCatalog.from(
+        title: 'VF-2SS Vertical Machining Center',
+        brand: 'Haas Automation',
+        price: '₹64,995.00',
+      ),
+    );
+    addTearDown(cart.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const CheckoutScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Secure Checkout'), findsOneWidget);
+    expect(find.text('Customer Details'), findsOneWidget);
+
+    // Freight is shipping + brokerage, so the total matches the cart page.
+    expect(Rupees.format(cart.freight), '₹5,370.00');
+
+    final page = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('Place Order'),
+      page,
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Place Order'), findsOneWidget);
+    expect(find.text(Rupees.format(cart.total)), findsOneWidget);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

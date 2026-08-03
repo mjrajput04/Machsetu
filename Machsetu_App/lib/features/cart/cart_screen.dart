@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
@@ -57,7 +58,8 @@ class CartScreen extends StatelessWidget {
                 const _DeliveryPath(),
                 const SizedBox(height: 16),
                 _OrderSummary(
-                  onCheckout: () => _todo(context, 'Checkout'),
+                  onCheckout: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.checkout),
                   onExport: () => _todo(context, 'Export quote'),
                 ),
                 const SizedBox(height: 16),

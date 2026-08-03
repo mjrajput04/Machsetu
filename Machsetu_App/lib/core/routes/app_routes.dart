@@ -6,6 +6,7 @@ import '../../features/auth/otp_verify_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/auth/reset_password_screen.dart';
 import '../../features/home/main_shell.dart';
+import '../../features/checkout/checkout_screen.dart';
 import '../../features/listings/machine_listing_screen.dart';
 import '../../features/product/data/product.dart';
 import '../../features/product/product_detail_screen.dart';
@@ -23,6 +24,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String machines = '/machines';
   static const String product = '/product';
+  static const String checkout = '/checkout';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -48,6 +50,8 @@ class AppRoutes {
         return _fade(const MainShell(), settings);
       case machines:
         return _slide(const MachineListingScreen(), settings);
+      case checkout:
+        return _slide(const CheckoutScreen(), settings);
       case product:
         return _slide(
           ProductDetailScreen(product: settings.arguments as Product),
