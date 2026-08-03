@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:machsetu_app/core/routes/app_routes.dart';
 import 'package:machsetu_app/core/theme/app_theme.dart';
+import 'package:machsetu_app/core/utils/currency.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/cart/data/cart_store.dart';
 import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
@@ -161,9 +162,45 @@ void main() {
     await tester.tap(find.text('Cart'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Your Cart'), findsOneWidget);
+    expect(find.text('Procurement Cart'), findsOneWidget);
     expect(find.text('Haas VF-2'), findsOneWidget);
-    expect(find.text('₹57,50,000'), findsOneWidget);
-    expect(find.text('PLACE INQUIRY'), findsOneWidget);
+    expect(find.text('HAAS AUTOMATION'), findsOneWidget);
+    expect(find.text('₹57,50,000.00'), findsWidgets);
+  });
+
+  // Reproduces the numbers on the design's Order Summary exactly.
+  test('cart totals match the quote sheet', () {
+    final cart = CartStore.instance..clear();
+    addTearDown(cart.clear);
+
+    cart.add(
+      ProductCatalog.from(
+        title: 'VF-2SS Vertical Machining Center',
+        brand: 'Haas Automation',
+        price: '₹64,995.00',
+      ),
+    );
+    final arm = ProductCatalog.from(
+      title: 'M-20iB/25 High-Payload Arm',
+      brand: 'Fanuc Robotics',
+      price: '₹32,450.00',
+    );
+    cart
+      ..add(arm)
+      ..add(arm);
+
+    expect(cart.count, 3);
+    expect(Rupees.format(cart.subtotal), '₹1,29,895.00');
+    expect(Rupees.format(cart.shipping), '₹4,250.00');
+    expect(Rupees.format(cart.brokerage), '₹1,120.00');
+    expect(Rupees.format(cart.gst), '₹24,347.70');
+    expect(Rupees.format(cart.total), '₹1,59,612.70');
+  });
+
+  test('rupee formatting uses Indian digit grouping', () {
+    expect(Rupees.format(1596127 / 10), '₹1,59,612.70');
+    expect(Rupees.compact(5750000), '₹57,50,000');
+    expect(Rupees.compact(999), '₹999');
+    expect(Rupees.parse('₹1,15,00,000'), 11500000);
   });
 }

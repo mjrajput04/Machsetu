@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/currency.dart';
+
 class ProductSpec {
   const ProductSpec({
     required this.icon,
@@ -55,6 +57,7 @@ class Product {
     required this.overview,
     required this.tags,
     required this.documents,
+    this.leadTime = '4-6 weeks',
     this.icon = Icons.precision_manufacturing,
   });
 
@@ -72,7 +75,13 @@ class Product {
   final List<String> overview;
   final List<String> tags;
   final List<ProductDocument> documents;
+
+  /// Quoted delivery window, shown on the cart line.
+  final String leadTime;
   final IconData icon;
+
+  /// [price] as a number so the cart can total it up.
+  double get amount => Rupees.parse(price);
 }
 
 /// Builds a [Product] from whatever a listing card knows about a machine.
@@ -132,6 +141,7 @@ class ProductCatalog {
     required String price,
     String priceNote = 'SHIPPING & INSTALLATION',
     String series = 'PRECISION SERIES',
+    String leadTime = '4-6 weeks',
     String? image,
     IconData icon = Icons.precision_manufacturing,
   }) {
@@ -143,6 +153,7 @@ class ProductCatalog {
       series: series,
       price: price,
       priceNote: priceNote,
+      leadTime: leadTime,
       icon: icon,
       images: [?image, ..._contextShots],
       heroSpecs: _heroSpecs,
