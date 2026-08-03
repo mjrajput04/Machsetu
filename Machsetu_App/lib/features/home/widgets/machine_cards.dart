@@ -137,16 +137,31 @@ class FeaturedMachineCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     SizedBox(
-                      width: 74,
-                      child: Text(
-                        machine.note,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.4,
-                          color: AppColors.textMuted,
-                        ),
+                      width: 96,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            machine.price,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.accent,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            machine.note,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.4,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -300,16 +315,31 @@ class _CompactMachineCardState extends State<CompactMachineCard> {
                       color: AppColors.brandBlue,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      widget.machine.year,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.machine.price,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.accent,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.machine.year,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -398,7 +398,16 @@ class _SearchResultCardState extends State<SearchResultCard> {
                     color: AppColors.brandBlue,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
+                Text(
+                  listing.price,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.accent,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Text(
                   listing.subtitle,
                   style: const TextStyle(

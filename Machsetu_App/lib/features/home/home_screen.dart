@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/machines.dart';
@@ -113,7 +114,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _SectionHeader(
               title: 'Featured Machines',
               action: 'View All Manifests →',
-              onAction: () => _todo('All manifests'),
+              onAction: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.machines),
             ),
             const SizedBox(height: 12),
             for (final machine in MachineData.featured) ...[

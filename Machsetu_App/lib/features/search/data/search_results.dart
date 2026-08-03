@@ -30,6 +30,7 @@ class SearchListing {
   const SearchListing({
     required this.title,
     required this.subtitle,
+    required this.price,
     required this.specs,
     this.image,
     this.badges = const [],
@@ -38,6 +39,9 @@ class SearchListing {
 
   final String title;
   final String subtitle;
+
+  /// Asking price, pre-formatted in the Indian lakh/crore grouping.
+  final String price;
   final List<ResultSpec> specs;
   final String? image;
   final List<ResultBadge> badges;
@@ -62,6 +66,7 @@ class SearchData {
     SearchListing(
       title: 'DMG Mori CMX 1100 V',
       subtitle: 'Vertical Machining Center • 2023',
+      price: '₹1,15,00,000',
       image: '$_photos/dmg_cmx_1100v.jpg',
       icon: Icons.precision_manufacturing,
       badges: [
@@ -77,24 +82,26 @@ class SearchData {
     SearchListing(
       title: 'Haas VF-2SS',
       subtitle: 'Super-Speed VMC • 2021',
+      price: '₹70,50,000',
       image: '$_photos/haas_vf2ss.jpg',
       icon: Icons.settings_suggest_outlined,
       badges: [ResultBadge('Best Value', BadgeTone.navy)],
       specs: [
         ResultSpec('TRAVEL X/Y/Z', '30" x 16" x 20"'),
         ResultSpec('SPINDLE', '15,000 RPM'),
-        ResultSpec('LOCATION', 'Rajkot, GJ'),
+        ResultSpec('LOCATION', 'Bengaluru, KA'),
       ],
     ),
     SearchListing(
       title: 'Mazak VCN-530C',
       subtitle: 'SmoothG Control • 2019',
+      price: '₹93,00,000',
       image: '$_photos/okuma_genos.jpg',
       icon: Icons.build_circle_outlined,
       specs: [
         ResultSpec('TABLE SIZE', '1300 x 550mm'),
         ResultSpec('ATC', '30 Tools'),
-        ResultSpec('LOCATION', 'Coimbatore, TN'),
+        ResultSpec('LOCATION', 'Chennai, TN'),
       ],
     ),
   ];
