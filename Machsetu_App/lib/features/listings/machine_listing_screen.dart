@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../product/data/product.dart';
 import 'data/listings.dart';
 
 /// Full catalogue reached from "View All Manifests" on the home page.
@@ -72,7 +74,17 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
                       for (final listing in listings) ...[
                         ListingCard(
                           listing: listing,
-                          onViewDetails: () => _todo(listing.title),
+                          onViewDetails: () => Navigator.of(context).pushNamed(
+                            AppRoutes.product,
+                            arguments: ProductCatalog.from(
+                              title: listing.title,
+                              brand: listing.brand,
+                              price: listing.price,
+                              priceNote: listing.priceNote,
+                              image: listing.image,
+                              icon: listing.icon,
+                            ),
+                          ),
                         ),
                         const SizedBox(height: 16),
                       ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
+import '../product/data/product.dart';
 import 'data/machines.dart';
 import 'widgets/machine_cards.dart';
 
@@ -26,6 +27,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void _todo(String label) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$label — coming soon')),
+    );
+  }
+
+  void _openProduct(Machine machine) {
+    Navigator.of(context).pushNamed(
+      AppRoutes.product,
+      arguments: ProductCatalog.from(
+        title: machine.title,
+        brand: machine.brand,
+        price: machine.price,
+        priceNote: machine.note.isEmpty ? 'SHIPPING & INSTALLATION' : machine.note,
+        image: machine.image,
+        icon: machine.icon,
+      ),
     );
   }
 
@@ -121,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
             for (final machine in MachineData.featured) ...[
               FeaturedMachineCard(
                 machine: machine,
-                onTap: () => _todo(machine.title),
+                onTap: () => _openProduct(machine),
               ),
               const SizedBox(height: 16),
             ],
@@ -173,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final machine = MachineData.recent[index];
                 return CompactMachineCard(
                   machine: machine,
-                  onTap: () => _todo(machine.title),
+                  onTap: () => _openProduct(machine),
                 );
               },
             ),

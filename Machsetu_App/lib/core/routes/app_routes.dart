@@ -7,6 +7,8 @@ import '../../features/auth/register_screen.dart';
 import '../../features/auth/reset_password_screen.dart';
 import '../../features/home/main_shell.dart';
 import '../../features/listings/machine_listing_screen.dart';
+import '../../features/product/data/product.dart';
+import '../../features/product/product_detail_screen.dart';
 import '../../features/splash/splash_screen.dart';
 
 class AppRoutes {
@@ -20,6 +22,7 @@ class AppRoutes {
   static const String resetPassword = '/reset-password';
   static const String home = '/home';
   static const String machines = '/machines';
+  static const String product = '/product';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -45,6 +48,11 @@ class AppRoutes {
         return _fade(const MainShell(), settings);
       case machines:
         return _slide(const MachineListingScreen(), settings);
+      case product:
+        return _slide(
+          ProductDetailScreen(product: settings.arguments as Product),
+          settings,
+        );
       default:
         return _fade(const SplashScreen(), settings);
     }

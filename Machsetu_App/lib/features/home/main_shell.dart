@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
+import '../cart/cart_screen.dart';
+import '../cart/data/cart_store.dart';
 import '../search/search_screen.dart';
 import 'home_screen.dart';
 
@@ -43,11 +45,7 @@ class _MainShellState extends State<MainShell> {
         children: [
           const HomeScreen(),
           const SearchScreen(),
-          const _ComingSoon(
-            icon: Icons.shopping_cart_outlined,
-            title: 'Your Cart',
-            message: 'Machines you shortlist for procurement appear here.',
-          ),
+          const CartScreen(),
           const _ComingSoon(
             icon: Icons.receipt_long_outlined,
             title: 'Orders',
@@ -85,12 +83,13 @@ class _MainShellState extends State<MainShell> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            i == _index ? _tabs[i].active : _tabs[i].inactive,
-                            size: 22,
-                            color: i == _index
-                                ? AppColors.accent
-                                : AppColors.textSecondary,
+                          _TabIcon(
+                            icon: i == _index
+                                ? _tabs[i].active
+                                : _tabs[i].inactive,
+                            selected: i == _index,
+                            // Index 2 is the Cart tab.
+                            showCartCount: i == 2,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -114,6 +113,44 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Tab glyph that carries the live cart count on the Cart tab.
+class _TabIcon extends StatelessWidget {
+  const _TabIcon({
+    required this.icon,
+    required this.selected,
+    required this.showCartCount,
+  });
+
+  final IconData icon;
+  final bool selected;
+  final bool showCartCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = Icon(
+      icon,
+      size: 22,
+      color: selected ? AppColors.accent : AppColors.textSecondary,
+    );
+
+    if (!showCartCount) return glyph;
+
+    return ListenableBuilder(
+      listenable: CartStore.instance,
+      builder: (context, child) {
+        final count = CartStore.instance.count;
+        if (count == 0) return child!;
+        return Badge(
+          label: Text('$count'),
+          backgroundColor: AppColors.accent,
+          child: child,
+        );
+      },
+      child: glyph,
     );
   }
 }

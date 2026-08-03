@@ -37,6 +37,14 @@ class Machine {
   /// panel when null or when the asset is missing.
   final String? image;
   final IconData icon;
+
+  /// Manufacturer, taken from the BRAND spec when the listing carries one.
+  String get brand {
+    for (final spec in specs) {
+      if (spec.label == 'BRAND') return spec.value;
+    }
+    return subtitle;
+  }
 }
 
 /// Static catalogue used until the listings API is connected.

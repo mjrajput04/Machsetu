@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
+import '../product/data/product.dart';
 import 'data/search_results.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -95,7 +97,16 @@ class _SearchScreenState extends State<SearchScreen> {
           for (final listing in SearchData.results) ...[
             SearchResultCard(
               listing: listing,
-              onViewDetails: () => _todo(listing.title),
+              onViewDetails: () => Navigator.of(context).pushNamed(
+                AppRoutes.product,
+                arguments: ProductCatalog.from(
+                  title: listing.title,
+                  brand: listing.brand,
+                  price: listing.price,
+                  image: listing.image,
+                  icon: listing.icon,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
           ],

@@ -5,7 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:machsetu_app/core/routes/app_routes.dart';
 import 'package:machsetu_app/core/theme/app_theme.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
+import 'package:machsetu_app/features/cart/data/cart_store.dart';
 import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
+import 'package:machsetu_app/features/product/data/product.dart';
+import 'package:machsetu_app/features/product/product_detail_screen.dart';
+import 'package:machsetu_app/features/product/widgets/product_hero.dart';
 
 void main() {
   // Phone-sized viewport so overflow assertions reflect a real handset.
@@ -93,5 +97,73 @@ void main() {
       const Offset(0, -150),
     );
     expect(find.text('Load More Results'), findsOneWidget);
+  });
+
+  testWidgets('tapping a listing opens the product page and fills the cart', (
+    tester,
+  ) async {
+    CartStore.instance.clear();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MachineListingScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'View Details').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ProductDetailScreen), findsOneWidget);
+    // Header carries the tapped card's own data through.
+    expect(find.text('Haas VF-2'), findsOneWidget);
+    // The brand line is a Text.rich, so it needs rich-text matching.
+    expect(
+      find.textContaining('Haas Automation', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('₹57,50,000'), findsOneWidget);
+    expect(find.text('PRECISION SERIES'), findsOneWidget);
+    expect(find.byType(ProductHero), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Cart'));
+    await tester.pumpAndSettle();
+
+    expect(CartStore.instance.count, 1);
+
+    // A second tap bumps the quantity rather than duplicating the line.
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Cart'));
+    await tester.pumpAndSettle();
+
+    expect(CartStore.instance.count, 2);
+    expect(CartStore.instance.items.length, 1);
+  });
+
+  testWidgets('the cart tab lists what was added', (tester) async {
+    CartStore.instance
+      ..clear()
+      ..add(
+        ProductCatalog.from(
+          title: 'Haas VF-2',
+          brand: 'Haas Automation',
+          price: '₹57,50,000',
+        ),
+      );
+    addTearDown(CartStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(theme: AppTheme.light, home: const MainShell()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cart'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your Cart'), findsOneWidget);
+    expect(find.text('Haas VF-2'), findsOneWidget);
+    expect(find.text('₹57,50,000'), findsOneWidget);
+    expect(find.text('PLACE INQUIRY'), findsOneWidget);
   });
 }

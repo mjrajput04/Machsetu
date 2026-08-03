@@ -30,6 +30,7 @@ class SearchListing {
   const SearchListing({
     required this.title,
     required this.subtitle,
+    required this.brand,
     required this.price,
     required this.specs,
     this.image,
@@ -39,6 +40,7 @@ class SearchListing {
 
   final String title;
   final String subtitle;
+  final String brand;
 
   /// Asking price, pre-formatted in the Indian lakh/crore grouping.
   final String price;
@@ -66,6 +68,7 @@ class SearchData {
     SearchListing(
       title: 'DMG Mori CMX 1100 V',
       subtitle: 'Vertical Machining Center • 2023',
+      brand: 'DMG MORI',
       price: '₹1,15,00,000',
       image: '$_photos/dmg_cmx_1100v.jpg',
       icon: Icons.precision_manufacturing,
@@ -82,6 +85,7 @@ class SearchData {
     SearchListing(
       title: 'Haas VF-2SS',
       subtitle: 'Super-Speed VMC • 2021',
+      brand: 'HAAS AUTOMATION',
       price: '₹70,50,000',
       image: '$_photos/haas_vf2ss.jpg',
       icon: Icons.settings_suggest_outlined,
@@ -95,6 +99,7 @@ class SearchData {
     SearchListing(
       title: 'Mazak VCN-530C',
       subtitle: 'SmoothG Control • 2019',
+      brand: 'YAMAZAKI MAZAK',
       price: '₹93,00,000',
       image: '$_photos/okuma_genos.jpg',
       icon: Icons.build_circle_outlined,
