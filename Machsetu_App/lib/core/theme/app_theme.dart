@@ -42,9 +42,9 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.navy,
+          backgroundColor: AppColors.brandBlue,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.navy.withValues(alpha: 0.45),
+          disabledBackgroundColor: AppColors.brandBlue.withValues(alpha: 0.45),
           disabledForegroundColor: Colors.white70,
           elevation: 0,
           minimumSize: const Size.fromHeight(54),

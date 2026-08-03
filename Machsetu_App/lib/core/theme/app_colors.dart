@@ -10,6 +10,11 @@ class AppColors {
   static const Color navyDark = Color(0xFF0A2244);
   static const Color navyDeep = Color(0xFF061627);
 
+  /// Medium brand blue used for card titles, spec values, section headings,
+  /// primary buttons and links. Lighter than [navy], which is reserved for
+  /// dark surfaces (promo banner, active category chip).
+  static const Color brandBlue = Color(0xFF1A5490);
+
   /// Industrial orange — CTAs, the FAB, the active tab and section links.
   static const Color accent = Color(0xFFF97316);
   static const Color accentDark = Color(0xFFC2410C);

@@ -132,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: AppColors.navy,
+                    color: AppColors.brandBlue,
                   ),
                 ),
                 Container(
@@ -371,7 +371,7 @@ class _SectionHeader extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: AppColors.navy,
+              color: AppColors.brandBlue,
             ),
           ),
         ),

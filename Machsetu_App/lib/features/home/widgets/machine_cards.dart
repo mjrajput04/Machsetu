@@ -121,7 +121,7 @@ class FeaturedMachineCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.navy,
+                              color: AppColors.brandBlue,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -202,7 +202,7 @@ class _SpecTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(spec.icon, size: 16, color: AppColors.navy),
+        Icon(spec.icon, size: 16, color: AppColors.brandBlue),
         const SizedBox(height: 6),
         Text(
           spec.label,
@@ -221,7 +221,7 @@ class _SpecTile extends StatelessWidget {
           style: const TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w800,
-            color: AppColors.navy,
+            color: AppColors.brandBlue,
           ),
         ),
       ],
@@ -297,7 +297,7 @@ class _CompactMachineCardState extends State<CompactMachineCard> {
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.navy,
+                      color: AppColors.brandBlue,
                     ),
                   ),
                   const SizedBox(height: 4),
