@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../search/search_screen.dart';
 import 'home_screen.dart';
@@ -24,6 +25,16 @@ class _MainShellState extends State<MainShell> {
     _TabItem(Icons.person_outline, Icons.person, 'Profile'),
   ];
 
+  /// Drops the stored session so the next launch starts at login again.
+  Future<void> _logout() async {
+    await SessionStore.instance.clear();
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,12 +53,7 @@ class _MainShellState extends State<MainShell> {
             title: 'Orders',
             message: 'Track audits, negotiations and logistics milestones.',
           ),
-          _ProfileTab(
-            onLogout: () => Navigator.of(context).pushNamedAndRemoveUntil(
-              AppRoutes.login,
-              (route) => false,
-            ),
-          ),
+          _ProfileTab(onLogout: _logout),
         ],
       ),
       floatingActionButton: _index == 0

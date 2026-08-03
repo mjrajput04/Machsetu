@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:machsetu_app/core/theme/app_theme.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
@@ -7,6 +8,7 @@ import 'package:machsetu_app/features/home/main_shell.dart';
 void main() {
   // Phone-sized viewport so overflow assertions reflect a real handset.
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
         .views
         .first;

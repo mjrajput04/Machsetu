@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/otp_input.dart';
 import '../../core/widgets/primary_button.dart';
@@ -18,10 +19,14 @@ enum OtpPurpose {
 }
 
 class OtpArgs {
-  const OtpArgs({required this.phone, required this.purpose});
+  const OtpArgs({required this.phone, required this.purpose, this.name});
 
   final String phone;
   final OtpPurpose purpose;
+
+  /// Carried over from registration so the verified session knows who the
+  /// user is (drives the app-bar monogram).
+  final String? name;
 }
 
 class OtpVerifyScreen extends StatefulWidget {
@@ -103,6 +108,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
     switch (widget.args.purpose) {
       case OtpPurpose.registration:
+        await SessionStore.instance.save(
+          phone: widget.args.phone,
+          name: widget.args.name,
+        );
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Mobile number verified. Welcome to MachSetu!'),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:machsetu_app/core/routes/app_routes.dart';
+import 'package:machsetu_app/core/services/session_store.dart';
 import 'package:machsetu_app/features/auth/forgot_password_screen.dart';
 import 'package:machsetu_app/features/auth/login_screen.dart';
 import 'package:machsetu_app/features/auth/register_screen.dart';
@@ -9,6 +11,9 @@ import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/main.dart';
 
 void main() {
+  // No stored session by default, so every test starts signed out.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('splash shows the brand and moves on to login', (tester) async {
     await tester.pumpWidget(const MachSetuApp());
 
@@ -59,6 +64,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(MainShell), findsOneWidget);
+    expect(await SessionStore.instance.isLoggedIn(), isTrue);
+  });
+
+  testWidgets('a stored session skips login on relaunch', (tester) async {
+    await SessionStore.instance.save(email: 'buyer@machsetu.in');
+
+    await tester.pumpWidget(const MachSetuApp());
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MainShell), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('logging out clears the stored session', (tester) async {
+    await SessionStore.instance.save(email: 'buyer@machsetu.in');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MainShell(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Log Out'));
+    await tester.pumpAndSettle();
+
+    expect(await SessionStore.instance.isLoggedIn(), isFalse);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
   testWidgets('auth links stay reachable at phone width', (tester) async {

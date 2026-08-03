@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/search_results.dart';
@@ -15,11 +16,21 @@ class _SearchScreenState extends State<SearchScreen> {
   final _query = TextEditingController(text: SearchData.defaultQuery);
   final _focus = FocusNode();
 
+  /// Falls back to the design's placeholder until a registered name is stored.
+  String _initials = 'JD';
+
   @override
   void initState() {
     super.initState();
     // The results header echoes the query, so rebuild as the user types.
     _query.addListener(() => setState(() {}));
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await SessionStore.instance.user();
+    if (!mounted || user.initials.isEmpty) return;
+    setState(() => _initials = user.initials);
   }
 
   @override
@@ -51,6 +62,7 @@ class _SearchScreenState extends State<SearchScreen> {
         onNotifications: () => _todo('Notifications'),
         onAvatarTap: () => _todo('Profile'),
         showAvatar: true,
+        initials: _initials,
       ),
       floatingActionButton: FloatingActionButton.extended(
         // Home's FAB is alive in the same IndexedStack, so both need
@@ -336,9 +348,11 @@ class _SearchResultCardState extends State<SearchResultCard> {
           Stack(
             children: [
               _ListingPhoto(image: listing.image, icon: listing.icon),
+              // Badges hug the top-left corner, so the leading one is clipped
+              // by the card's radius exactly like the design.
               Positioned(
-                top: 12,
-                left: 12,
+                top: 0,
+                left: 0,
                 child: Row(
                   children: [
                     for (final badge in listing.badges) ...[

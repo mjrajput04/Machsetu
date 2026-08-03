@@ -301,11 +301,14 @@ class _CompactMachineCardState extends State<CompactMachineCard> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    widget.machine.year,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      widget.machine.year,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ],

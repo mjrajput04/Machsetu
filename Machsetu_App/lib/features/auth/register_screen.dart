@@ -80,7 +80,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     Navigator.of(context).pushNamed(
       AppRoutes.otpVerify,
-      arguments: OtpArgs(phone: phone, purpose: OtpPurpose.registration),
+      arguments: OtpArgs(
+        phone: phone,
+        purpose: OtpPurpose.registration,
+        name: _name.text.trim(),
+      ),
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/brand_logo.dart';
 
@@ -48,10 +49,18 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
     _intro.forward();
-    _navTimer = Timer(const Duration(milliseconds: 3000), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(AppRoutes.login);
-    });
+    _navTimer = Timer(const Duration(milliseconds: 3000), _goNext);
+  }
+
+  /// Returning users skip straight to the marketplace; everyone else lands on
+  /// login. The session read is fast, but it is awaited after the splash
+  /// animation so the branding is never cut short.
+  Future<void> _goNext() async {
+    final loggedIn = await SessionStore.instance.isLoggedIn();
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed(
+      loggedIn ? AppRoutes.home : AppRoutes.login,
+    );
   }
 
   @override
