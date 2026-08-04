@@ -11,7 +11,11 @@ import 'package:machsetu_app/features/orders/data/order.dart';
 import 'package:machsetu_app/features/orders/order_success_screen.dart';
 import 'package:machsetu_app/features/notifications/notifications_screen.dart';
 import 'package:machsetu_app/features/orders/orders_screen.dart';
+import 'package:machsetu_app/core/services/session_store.dart';
+import 'package:machsetu_app/features/profile/edit_profile_screen.dart';
+import 'package:machsetu_app/features/profile/my_inquiries_screen.dart';
 import 'package:machsetu_app/features/profile/profile_screen.dart';
+import 'package:machsetu_app/features/profile/security_screen.dart';
 import 'package:machsetu_app/features/support/help_support_screen.dart';
 import 'package:machsetu_app/features/support/terms_screen.dart';
 import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
@@ -566,6 +570,120 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TermsScreen), findsOneWidget);
     expect(find.text('Terms of Trade'), findsOneWidget);
+  });
+
+  testWidgets('editing the profile persists every field', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const EditProfileScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Prefilled from the demo profile, and the monogram tracks the name.
+    expect(find.text('MS'), findsOneWidget);
+    expect(find.text('Change Photo'), findsOneWidget);
+
+    Future<void> fill(String hint, String value) async {
+      await tester.enterText(
+        find.widgetWithText(TextFormField, hint).last,
+        value,
+      );
+    }
+
+    await fill('Marcus V. Sterling', 'Rajesh Kumar');
+    await tester.pumpAndSettle();
+    expect(find.text('RK'), findsOneWidget);
+
+    await fill('you@company.com', 'rajesh@apex.in');
+    await fill('98765 43210', '9876543210');
+    await fill('Aerotech Solutions Inc.', 'Apex Manufacturing');
+    await fill('GSTIN-9922883311', 'gstin24aaaaa1');
+    await fill('Pune', 'Pune');
+    await tester.pumpAndSettle();
+
+    final page = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('Save Changes'),
+      page,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Save Changes'));
+    await tester.pumpAndSettle();
+
+    final saved = await SessionStore.instance.user();
+    expect(saved.name, 'Rajesh Kumar');
+    expect(saved.email, 'rajesh@apex.in');
+    expect(saved.phone, '9876543210');
+    expect(saved.company, 'Apex Manufacturing');
+    expect(saved.gstin, 'GSTIN24AAAAA1');
+    expect(saved.city, 'Pune');
+    expect(saved.initials, 'RK');
+  });
+
+  testWidgets('my inquiries filters open and closed RFQs', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MyInquiriesScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Requests for Quotation'), findsOneWidget);
+    expect(find.text('RFQ-4471'), findsOneWidget);
+    expect(find.text('Quote Received'), findsOneWidget);
+    expect(find.text('₹1,12,50,000'), findsOneWidget);
+
+    await tester.tap(find.text('Closed'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('RFQ-4402'), findsOneWidget);
+    expect(find.text('RFQ-4471'), findsNothing);
+  });
+
+  testWidgets('security toggles persist and sessions can be revoked', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const SecurityScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account Security'), findsOneWidget);
+    expect(find.text('Two-Factor Authentication'), findsOneWidget);
+
+    // Login alerts default on, 2FA and biometrics off.
+    expect((await SessionStore.instance.security()).twoFactor, isFalse);
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+
+    expect((await SessionStore.instance.security()).twoFactor, isTrue);
+
+    final page = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('Chrome • Windows 11'),
+      page,
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Revoke').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign out this device?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sign Out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chrome • Windows 11'), findsNothing);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

@@ -128,7 +128,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
-          _Header(name: name, initials: initials),
+          _Header(
+            name: name,
+            initials: initials,
+            role: (_user?.role.isNotEmpty ?? false)
+                ? _user!.role
+                : ProfileData.role,
+            company: (_user?.company.isNotEmpty ?? false)
+                ? _user!.company
+                : ProfileData.company,
+          ),
           const SizedBox(height: 26),
           const _SectionHeading('Account Settings'),
           const SizedBox(height: 12),
@@ -146,20 +155,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Edit Profile',
                   detail: 'Update personal details, company info, and contact '
                       'preferences',
-                  onTap: () => _todo('Edit profile'),
+                  onTap: () async {
+                    final saved = await Navigator.of(context)
+                        .pushNamed<Object?>(AppRoutes.editProfile);
+                    // Pull the freshly saved details back into the header.
+                    if (saved == true) await _load();
+                  },
                 ),
                 _SettingRow(
                   icon: Icons.description_outlined,
                   title: 'My Inquiries',
                   detail: 'Track RFQs, active quotes, and technical '
                       'specifications',
-                  onTap: () => Navigator.of(context).pushNamed(AppRoutes.home),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.myInquiries),
                 ),
                 _SettingRow(
                   icon: Icons.shield_outlined,
                   title: 'Security',
                   detail: 'Manage passwords, 2FA, and active session history',
-                  onTap: () => _todo('Security settings'),
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.security),
                 ),
                 _SettingRow(
                   icon: Icons.help_outline,
@@ -228,10 +244,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.name, required this.initials});
+  const _Header({
+    required this.name,
+    required this.initials,
+    required this.role,
+    required this.company,
+  });
 
   final String name;
   final String initials;
+  final String role;
+  final String company;
 
   @override
   Widget build(BuildContext context) {
@@ -273,13 +296,15 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        const Text(
-          ProfileData.role,
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        Text(
+          role,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
-        const Text(
-          ProfileData.company,
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        Text(
+          company,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 12),
         Container(

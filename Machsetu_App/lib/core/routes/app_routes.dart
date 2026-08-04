@@ -9,6 +9,9 @@ import '../../features/home/main_shell.dart';
 import '../../features/checkout/checkout_screen.dart';
 import '../../features/listings/machine_listing_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
+import '../../features/profile/edit_profile_screen.dart';
+import '../../features/profile/my_inquiries_screen.dart';
+import '../../features/profile/security_screen.dart';
 import '../../features/support/help_support_screen.dart';
 import '../../features/support/terms_screen.dart';
 import '../../features/orders/data/order.dart';
@@ -36,6 +39,9 @@ class AppRoutes {
   static const String notifications = '/notifications';
   static const String helpSupport = '/help-support';
   static const String terms = '/terms';
+  static const String editProfile = '/edit-profile';
+  static const String myInquiries = '/my-inquiries';
+  static const String security = '/security';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -69,6 +75,12 @@ class AppRoutes {
         return _slide(const HelpSupportScreen(), settings);
       case terms:
         return _slide(const TermsScreen(), settings);
+      case editProfile:
+        return _slide(const EditProfileScreen(), settings);
+      case myInquiries:
+        return _slide(const MyInquiriesScreen(), settings);
+      case security:
+        return _slide(const SecurityScreen(), settings);
       case orderSuccess:
         return _fade(
           OrderSuccessScreen(order: settings.arguments as Order),
