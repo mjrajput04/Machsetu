@@ -100,9 +100,10 @@ class _SplashScreenState extends State<SplashScreen>
     final loggedIn = await SessionStore.instance.isLoggedIn();
     if (!mounted) return;
 
-    await _exit.forward();
-    if (!mounted) return;
-
+    // Deliberately not awaited: the content lifts away while the next route
+    // fades in over the same gradient, so the two motions overlap instead of
+    // leaving a gap between them.
+    _exit.forward();
     Navigator.of(context).pushReplacementNamed(
       loggedIn ? AppRoutes.home : AppRoutes.login,
     );
@@ -121,23 +122,26 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedBuilder(
-        animation: _exit,
-        builder: (context, child) {
-          return Opacity(
-            opacity: 1 - _exit.value,
-            child: Transform.scale(
-              scale: 1 + _exit.value * 0.06,
-              child: child,
-            ),
-          );
-        },
-        child: DecoratedBox(
-          decoration: const BoxDecoration(gradient: AppColors.splashGradient),
-          child: Stack(
-            children: [
-              _backdropLayers(),
-              SafeArea(
+      // The gradient deliberately sits OUTSIDE the exit animation. The next
+      // route fades in on top of this screen, so if the whole thing faded out
+      // there would be a blank flash underneath during the hand-off.
+      body: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppColors.splashGradient),
+        child: Stack(
+          children: [
+            _backdropLayers(),
+            AnimatedBuilder(
+              animation: _exit,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: 1 - _exit.value,
+                  child: Transform.scale(
+                    scale: 1 + _exit.value * 0.06,
+                    child: child,
+                  ),
+                );
+              },
+              child: SafeArea(
                 child: Stack(
                   children: [
                     _topHud(),
@@ -146,8 +150,8 @@ class _SplashScreenState extends State<SplashScreen>
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
