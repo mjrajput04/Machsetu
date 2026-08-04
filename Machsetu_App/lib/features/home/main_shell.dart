@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
@@ -53,6 +54,34 @@ class _MainShellState extends State<MainShell> {
     _TabItem(Icons.person_outline, Icons.person, 'Profile'),
   ];
 
+  DateTime? _lastBackPress;
+
+  /// Back gesture / arrow / hardware button never drops straight out of the
+  /// app: any other tab returns to Home first, and leaving from Home needs a
+  /// second press so it can't happen by accident.
+  void _onBack() {
+    if (_index != ShellTabs.home) {
+      _select(ShellTabs.home);
+      return;
+    }
+
+    final now = DateTime.now();
+    final last = _lastBackPress;
+    if (last == null || now.difference(last) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      return;
+    }
+    SystemNavigator.pop();
+  }
+
   /// Drops the stored session so the next launch starts at login again.
   Future<void> _logout() async {
     await SessionStore.instance.clear();
@@ -65,6 +94,16 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onBack();
+      },
+      child: _buildShell(context),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _index,

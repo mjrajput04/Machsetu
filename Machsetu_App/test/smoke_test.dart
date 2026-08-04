@@ -847,6 +847,38 @@ void main() {
     expect(find.text('Haas VF-2SS'), findsNothing);
   });
 
+  testWidgets('back from any tab returns to Home instead of exiting', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MainShell(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final tab in ['Search', 'Cart', 'Orders', 'Profile']) {
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+      expect(ShellTabs.selected.value, isNot(ShellTabs.home));
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      // Back lands on Home and the shell is still mounted.
+      expect(ShellTabs.selected.value, ShellTabs.home);
+      expect(find.byType(MainShell), findsOneWidget);
+    }
+
+    // From Home the first press warns instead of leaving.
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.text('Press back again to exit'), findsOneWidget);
+    expect(find.byType(MainShell), findsOneWidget);
+  });
+
   test('rupee formatting uses Indian digit grouping', () {
     expect(Rupees.format(1596127 / 10), '₹1,59,612.70');
     expect(Rupees.compact(5750000), '₹57,50,000');
