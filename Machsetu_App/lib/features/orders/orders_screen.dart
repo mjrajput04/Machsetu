@@ -93,7 +93,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: MachSetuAppBar(
-        onNotifications: () => _todo('Notifications'),
         onAvatarTap: () => _todo('Profile'),
         showAvatar: true,
       ),

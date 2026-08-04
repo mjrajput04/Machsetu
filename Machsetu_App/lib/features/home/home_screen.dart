@@ -48,9 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: MachSetuAppBar(
-        onNotifications: () => _todo('Notifications'),
-      ),
+      appBar: const MachSetuAppBar(),
       body: RefreshIndicator(
         color: AppColors.navy,
         onRefresh: () => Future<void>.delayed(const Duration(milliseconds: 900)),

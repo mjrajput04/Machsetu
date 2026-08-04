@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../routes/app_routes.dart';
 import '../theme/app_colors.dart';
 import 'brand_logo.dart';
 
@@ -35,7 +36,10 @@ class MachSetuAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
-          onPressed: onNotifications,
+          // Defaults to the notification centre so every screen's bell works
+          // without each one wiring it up.
+          onPressed: onNotifications ??
+              () => Navigator.of(context).pushNamed(AppRoutes.notifications),
           icon: const Badge(
             backgroundColor: AppColors.accent,
             smallSize: 8,

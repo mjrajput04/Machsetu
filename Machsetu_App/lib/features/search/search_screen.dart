@@ -61,7 +61,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
     return Scaffold(
       appBar: MachSetuAppBar(
-        onNotifications: () => _todo('Notifications'),
         onAvatarTap: () => _todo('Profile'),
         showAvatar: true,
         initials: _initials,

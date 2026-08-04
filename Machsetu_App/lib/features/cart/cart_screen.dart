@@ -18,9 +18,7 @@ class CartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: MachSetuAppBar(
-        onNotifications: () => _todo(context, 'Notifications'),
-      ),
+      appBar: const MachSetuAppBar(),
       body: ListenableBuilder(
         listenable: CartStore.instance,
         builder: (context, _) {

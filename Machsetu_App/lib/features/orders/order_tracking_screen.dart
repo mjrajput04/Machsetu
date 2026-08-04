@@ -20,7 +20,6 @@ class OrderTrackingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: MachSetuAppBar(
-        onNotifications: () => _todo(context, 'Notifications'),
         onAvatarTap: () => _todo(context, 'Profile'),
         showAvatar: true,
       ),

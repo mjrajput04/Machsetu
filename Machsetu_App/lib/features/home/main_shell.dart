@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../cart/cart_screen.dart';
 import '../cart/data/cart_store.dart';
 import '../orders/orders_screen.dart';
+import '../profile/profile_screen.dart';
 import '../search/search_screen.dart';
 import 'home_screen.dart';
 
@@ -72,7 +73,7 @@ class _MainShellState extends State<MainShell> {
           const SearchScreen(),
           const CartScreen(),
           const OrdersScreen(),
-          _ProfileTab(onLogout: _logout),
+          ProfileScreen(onLogout: _logout),
         ],
       ),
       floatingActionButton: _index == 0
@@ -182,109 +183,4 @@ class _TabItem {
   final IconData inactive;
   final IconData active;
   final String label;
-}
-
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab({required this.onLogout});
-
-  final VoidCallback onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: AppColors.bannerGradient,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  height: 54,
-                  width: 54,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.person, color: Colors.white),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Industrial Partner',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Verified buyer • Since 2026',
-                        style: TextStyle(fontSize: 12.5, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          for (final item in const [
-            (Icons.business_outlined, 'Company Details'),
-            (Icons.favorite_border, 'Saved Machines'),
-            (Icons.local_shipping_outlined, 'Logistics Partners'),
-            (Icons.help_outline, 'Help & Support'),
-          ])
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: ListTile(
-                leading: Icon(item.$1, color: AppColors.navy, size: 20),
-                title: Text(
-                  item.$2,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                trailing: const Icon(Icons.chevron_right, size: 20),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${item.$2} — coming soon')),
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(50),
-              foregroundColor: AppColors.danger,
-              side: const BorderSide(color: AppColors.danger),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            onPressed: onLogout,
-            icon: const Icon(Icons.logout, size: 18),
-            label: const Text(
-              'Log Out',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

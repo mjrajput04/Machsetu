@@ -9,7 +9,11 @@ import 'package:machsetu_app/core/utils/currency.dart';
 import 'package:machsetu_app/features/checkout/checkout_screen.dart';
 import 'package:machsetu_app/features/orders/data/order.dart';
 import 'package:machsetu_app/features/orders/order_success_screen.dart';
+import 'package:machsetu_app/features/notifications/notifications_screen.dart';
 import 'package:machsetu_app/features/orders/orders_screen.dart';
+import 'package:machsetu_app/features/profile/profile_screen.dart';
+import 'package:machsetu_app/features/support/help_support_screen.dart';
+import 'package:machsetu_app/features/support/terms_screen.dart';
 import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/cart/data/cart_store.dart';
@@ -499,6 +503,69 @@ void main() {
     expect(find.text('Laser-Cut V3 Pro'), findsOneWidget);
     expect(find.text('AX-900 Precision Lathe'), findsNothing);
     expect(find.text('ACTIVE INQUIRIES'), findsNothing);
+  });
+
+  testWidgets('the bell opens the notification centre', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MainShell(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Every tab in the IndexedStack has an app bar, so target the visible one.
+    await tester.tap(find.byIcon(Icons.notifications_none_rounded).first);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NotificationsScreen), findsOneWidget);
+    expect(find.text('Notification Center'), findsOneWidget);
+    expect(find.text('TODAY'), findsOneWidget);
+    expect(find.text('Inquiry Approved'), findsOneWidget);
+    expect(find.text('View Quote'), findsOneWidget);
+  });
+
+  testWidgets('profile links reach help and terms', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: ProfileScreen(onLogout: () async {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Account Settings'), findsOneWidget);
+    expect(find.text('Marcus V. Sterling'), findsOneWidget);
+
+    final page = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('Help & Support'),
+      page,
+      const Offset(0, -160),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Help & Support'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HelpSupportScreen), findsOneWidget);
+    expect(find.text('How can we help?'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    await tester.dragUntilVisible(
+      find.text('Terms & Conditions'),
+      find.byType(Scrollable).first,
+      const Offset(0, -160),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Terms & Conditions'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TermsScreen), findsOneWidget);
+    expect(find.text('Terms of Trade'), findsOneWidget);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

@@ -92,7 +92,25 @@ void main() {
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Log Out'));
+    await tester.dragUntilVisible(
+      find.text('Logout'),
+      find.byType(Scrollable).first,
+      const Offset(0, -160),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+
+    // Confirmation guards the destructive action.
+    expect(find.text('Log out?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(await SessionStore.instance.isLoggedIn(), isTrue);
+
+    await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Log Out'));
     await tester.pumpAndSettle();
 
     expect(await SessionStore.instance.isLoggedIn(), isFalse);
