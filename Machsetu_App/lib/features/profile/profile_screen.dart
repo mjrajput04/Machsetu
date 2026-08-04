@@ -153,16 +153,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.sell_outlined,
                   title: 'Sell Your Machine',
-                  detail: 'List a machine for verification and reach verified '
-                      'buyers',
+                  detail: 'Your live, pending and sold listings — add a new '
+                      'machine from there',
                   highlight: true,
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.sellMachine),
-                ),
-                _SettingRow(
-                  icon: Icons.storefront_outlined,
-                  title: 'My Listings',
-                  detail: 'Live, pending and sold machines you have listed',
                   onTap: () =>
                       Navigator.of(context).pushNamed(AppRoutes.myListings),
                 ),

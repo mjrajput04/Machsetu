@@ -548,6 +548,15 @@ void main() {
     expect(find.text('Account Settings'), findsOneWidget);
     expect(find.text('Marcus V. Sterling'), findsOneWidget);
 
+    // Sell Your Machine opens the listings page, not the form.
+    await tester.tap(find.text('Sell Your Machine'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MyListingsScreen), findsOneWidget);
+    expect(find.byType(SellMachineScreen), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
     final page = find.byType(Scrollable).first;
     await tester.dragUntilVisible(
       find.text('Help & Support'),
