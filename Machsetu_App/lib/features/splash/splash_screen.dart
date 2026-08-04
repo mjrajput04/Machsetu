@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,7 +7,13 @@ import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/brand_logo.dart';
+import 'widgets/splash_painters.dart';
 
+/// Animated brand intro.
+///
+/// One 3.2s timeline drives the whole sequence — badge draws itself, logo
+/// springs in, the wordmark types out letter by letter, then the loader fills.
+/// Two looping controllers add ambient motion so nothing sits still.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -18,46 +23,86 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
+  static const String _wordmark = 'MACHSETU';
+
   late final AnimationController _intro = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
+    duration: const Duration(milliseconds: 3200),
   );
+
+  /// Slow ambient clock — aurora drift, grid drift, ring rotation.
+  late final AnimationController _ambient = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 14),
+  )..repeat();
+
+  /// Breathing clock for the halo and loader dot.
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1400),
+    duration: const Duration(milliseconds: 1600),
   )..repeat(reverse: true);
 
-  late final Animation<double> _fade = CurvedAnimation(
-    parent: _intro,
-    curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
-  );
-  late final Animation<double> _scale = Tween<double>(
-    begin: 0.86,
-    end: 1.0,
-  ).animate(
-    CurvedAnimation(parent: _intro, curve: Curves.easeOutBack),
-  );
-  late final Animation<double> _textFade = CurvedAnimation(
-    parent: _intro,
-    curve: const Interval(0.35, 1.0, curve: Curves.easeOut),
+  /// Fades and lifts the whole screen away on exit.
+  late final AnimationController _exit = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
   );
 
-  Timer? _navTimer;
+  late final Animation<double> _backdrop = _curve(0.00, 0.30);
+  late final Animation<double> _markDraw = _curve(0.05, 0.50, Curves.easeInOut);
+  late final Animation<double> _logoFade = _curve(0.18, 0.44);
+  late final Animation<double> _logoScale = Tween<double>(
+    begin: 0.55,
+    end: 1,
+  ).animate(
+    CurvedAnimation(
+      parent: _intro,
+      curve: const Interval(0.18, 0.56, curve: Curves.easeOutBack),
+    ),
+  );
+  late final Animation<double> _tagline = _curve(0.66, 0.82);
+  late final Animation<double> _rule = _curve(0.70, 0.88, Curves.easeOutCubic);
+  late final Animation<double> _loader = _curve(0.60, 1.00, Curves.easeInOut);
+  late final Animation<double> _hud = _curve(0.78, 1.00);
+
+  Animation<double> _curve(double begin, double end, [Curve curve = Curves.easeOut]) {
+    return CurvedAnimation(
+      parent: _intro,
+      curve: Interval(begin, end, curve: curve),
+    );
+  }
+
+  /// Each letter gets its own slice of the 0.46–0.72 window.
+  Animation<double> _letter(int index) {
+    const start = 0.46;
+    const span = 0.26;
+    final slot = span / _wordmark.length;
+    final begin = start + slot * index;
+    return CurvedAnimation(
+      parent: _intro,
+      curve: Interval(begin, (begin + slot * 2.6).clamp(0.0, 1.0),
+          curve: Curves.easeOutCubic),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
-    _intro.forward();
-    _navTimer = Timer(const Duration(milliseconds: 3000), _goNext);
+    _run();
   }
 
-  /// Returning users skip straight to the marketplace; everyone else lands on
-  /// login. The session read is fast, but it is awaited after the splash
-  /// animation so the branding is never cut short.
-  Future<void> _goNext() async {
+  Future<void> _run() async {
+    await _intro.forward();
+    if (!mounted) return;
+
+    // Returning users skip straight to the marketplace.
     final loggedIn = await SessionStore.instance.isLoggedIn();
     if (!mounted) return;
+
+    await _exit.forward();
+    if (!mounted) return;
+
     Navigator.of(context).pushReplacementNamed(
       loggedIn ? AppRoutes.home : AppRoutes.login,
     );
@@ -65,176 +110,40 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _navTimer?.cancel();
     _intro.dispose();
+    _ambient.dispose();
     _pulse.dispose();
+    _exit.dispose();
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     super.dispose();
-  }
-
-  String get _stamp {
-    final now = DateTime.now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${now.year}-${two(now.month)}-${two(now.day)}  '
-        '${two(now.hour)}:${two(now.minute)}:${two(now.second)}';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.splashGradient),
-        child: SafeArea(
+      body: AnimatedBuilder(
+        animation: _exit,
+        builder: (context, child) {
+          return Opacity(
+            opacity: 1 - _exit.value,
+            child: Transform.scale(
+              scale: 1 + _exit.value * 0.06,
+              child: child,
+            ),
+          );
+        },
+        child: DecoratedBox(
+          decoration: const BoxDecoration(gradient: AppColors.splashGradient),
           child: Stack(
             children: [
-              _GridOverlay(),
-              Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(0, 18, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _mono('INDUSTRIAL_NEXUS_SYNC', opacity: 0.42),
-                      const SizedBox(height: 6),
-                      _mono(_stamp, opacity: 0.26),
-                    ],
-                  ),
-                ),
-              ),
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              _backdropLayers(),
+              SafeArea(
+                child: Stack(
                   children: [
-                    FadeTransition(
-                      opacity: _fade,
-                      child: ScaleTransition(
-                        scale: _scale,
-                        child: SizedBox(
-                          height: 260,
-                          width: 300,
-                          child: CustomPaint(
-                            painter: _HexPainter(),
-                            child: const Center(
-                              child: BrandLogo(
-                                size: 150,
-                                fallbackColor: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    FadeTransition(
-                      opacity: _textFade,
-                      child: Column(
-                        children: [
-                          const BrandWordmark.metallic(),
-                          const SizedBox(height: 14),
-                          const BrandTagline(
-                            color: AppColors.steelLight,
-                            fontSize: 11.5,
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            height: 1,
-                            width: 90,
-                            color: AppColors.accent.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            "INDIA'S PREMIER B2B INDUSTRIAL NEXUS",
-                            style: TextStyle(
-                              fontSize: 11,
-                              letterSpacing: 1.6,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.55),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 54),
-                    FadeTransition(
-                      opacity: _textFade,
-                      child: Column(
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulse,
-                            builder: (context, child) {
-                              return Container(
-                                height: 62,
-                                width: 62,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.accent.withValues(
-                                      alpha: 0.45 + (_pulse.value * 0.55),
-                                    ),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.wifi_tethering,
-                                  color: AppColors.accent.withValues(
-                                    alpha: 0.6 + (_pulse.value * 0.4),
-                                  ),
-                                  size: 24,
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'SYNCING GLOBAL NODES...',
-                            style: TextStyle(
-                              fontSize: 13,
-                              letterSpacing: 1.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.accent,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _mono('SYS_AUTH_LOG: NET_NODE_CONNECT_22',
-                              opacity: 0.35),
-                        ],
-                      ),
-                    ),
+                    _topHud(),
+                    Center(child: _centrepiece()),
+                    _bottomHud(),
                   ],
-                ),
-              ),
-              Align(
-                alignment: Alignment.bottomLeft,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 0, 22),
-                  child: FadeTransition(
-                    opacity: _textFade,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              height: 6,
-                              width: 6,
-                              decoration: const BoxDecoration(
-                                color: AppColors.accent,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _mono('KERNEL: V4.2.0_STABLE', opacity: 0.5),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        _mono('LOCATION: IN_GIGA_HUB', opacity: 0.3),
-                        const SizedBox(height: 8),
-                        _mono('PROTOCOL: SECURE_V3_AES', opacity: 0.3),
-                      ],
-                    ),
-                  ),
                 ),
               ),
             ],
@@ -244,11 +153,353 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  // -------------------------------------------------------------- backdrop
+
+  Widget _backdropLayers() {
+    return Positioned.fill(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_ambient, _intro]),
+        builder: (context, _) {
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: Opacity(
+                  opacity: _backdrop.value,
+                  child: CustomPaint(painter: AuroraPainter(_ambient.value)),
+                ),
+              ),
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: DriftGridPainter(
+                    _ambient.value * 6,
+                    opacity: _backdrop.value,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------ centrepiece
+
+  Widget _centrepiece() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 250,
+          width: 250,
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_intro, _ambient, _pulse]),
+            builder: (context, _) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    size: const Size(232, 232),
+                    painter: MarkPainter(
+                      draw: _markDraw.value,
+                      spin: _ambient.value,
+                      pulse: _pulse.value,
+                    ),
+                  ),
+                  // Three dots orbiting the badge.
+                  for (var i = 0; i < 3; i++)
+                    Transform.rotate(
+                      angle: _ambient.value * 2 * math.pi +
+                          i * (2 * math.pi / 3),
+                      child: Transform.translate(
+                        offset: const Offset(0, -122),
+                        child: Opacity(
+                          opacity: _markDraw.value,
+                          child: Container(
+                            height: 6,
+                            width: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.accent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Opacity(
+                    opacity: _logoFade.value,
+                    child: Transform.scale(
+                      scale: _logoScale.value,
+                      child: const BrandLogo(
+                        size: 132,
+                        fallbackColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 28),
+        _animatedWordmark(),
+        const SizedBox(height: 16),
+        FadeTransition(
+          opacity: _tagline,
+          child: const BrandTagline(
+            color: AppColors.steelLight,
+            fontSize: 11.5,
+          ),
+        ),
+        const SizedBox(height: 18),
+        AnimatedBuilder(
+          animation: _rule,
+          builder: (context, _) => Container(
+            height: 1.5,
+            width: 120 * _rule.value,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(1),
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.accent.withValues(alpha: 0),
+                  AppColors.accent,
+                  AppColors.accent.withValues(alpha: 0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        FadeTransition(
+          opacity: _hud,
+          child: Text(
+            "INDIA'S PREMIER B2B INDUSTRIAL NEXUS",
+            style: TextStyle(
+              fontSize: 10.5,
+              letterSpacing: 1.7,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: 0.55),
+            ),
+          ),
+        ),
+        const SizedBox(height: 46),
+        _loaderBar(),
+      ],
+    );
+  }
+
+  /// MACHSETU, one letter at a time, under a brushed-metal sweep.
+  Widget _animatedWordmark() {
+    return ShaderMask(
+      shaderCallback: (bounds) =>
+          AppColors.steelGradient.createShader(bounds),
+      blendMode: BlendMode.srcIn,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < _wordmark.length; i++)
+            AnimatedBuilder(
+              animation: _intro,
+              builder: (context, _) {
+                final t = _letter(i).value;
+                return Opacity(
+                  opacity: t,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - t) * 22),
+                    child: Transform.scale(
+                      scale: 0.82 + t * 0.18,
+                      child: Text(
+                        _wordmark[i],
+                        style: const TextStyle(
+                          fontSize: 34,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 3,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Determinate bar plus a counter, so the wait reads as progress.
+  Widget _loaderBar() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_intro, _pulse]),
+      builder: (context, _) {
+        final value = _loader.value;
+        return Opacity(
+          opacity: _loader.status == AnimationStatus.dismissed ? 0 : 1,
+          child: Column(
+            children: [
+              SizedBox(
+                width: 190,
+                child: Stack(
+                  children: [
+                    Container(
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: value,
+                      child: Container(
+                        height: 3,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                          gradient: const LinearGradient(
+                            colors: [
+                              AppColors.accentGlow,
+                              AppColors.accent,
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.accent.withValues(alpha: 0.6),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 6,
+                    width: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.accent.withValues(
+                        alpha: 0.35 + _pulse.value * 0.65,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'SYNCING GLOBAL NODES',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      letterSpacing: 1.6,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accent.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${(value * 100).round()}%',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // -------------------------------------------------------------------- hud
+
+  Widget _topHud() {
+    return Align(
+      alignment: Alignment.topRight,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 18, 20, 0),
+        child: FadeTransition(
+          opacity: _hud,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _mono('INDUSTRIAL_NEXUS_SYNC', opacity: 0.42),
+              const SizedBox(height: 6),
+              _mono(_stamp, opacity: 0.26),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomHud() {
+    return Align(
+      alignment: Alignment.bottomLeft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+        child: FadeTransition(
+          opacity: _hud,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedBuilder(
+                animation: _pulse,
+                builder: (context, child) => Row(
+                  children: [
+                    Container(
+                      height: 6,
+                      width: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.accent.withValues(
+                          alpha: 0.4 + _pulse.value * 0.6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    child!,
+                  ],
+                ),
+                child: _mono('KERNEL: V4.2.0_STABLE', opacity: 0.5),
+              ),
+              const SizedBox(height: 8),
+              _mono('LOCATION: IN_GIGA_HUB', opacity: 0.3),
+              const SizedBox(height: 8),
+              _mono('PROTOCOL: SECURE_V3_AES', opacity: 0.3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _stamp {
+    final now = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${now.year}-${two(now.month)}-${two(now.day)}  '
+        '${two(now.hour)}:${two(now.minute)}:${two(now.second)}';
+  }
+
   Widget _mono(String text, {double opacity = 0.4}) {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 11,
+        fontSize: 10.5,
         letterSpacing: 1.1,
         fontWeight: FontWeight.w500,
         fontFamily: 'monospace',
@@ -256,80 +507,4 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}
-
-/// Faint hexagon + circular halo behind the logo mark.
-class _HexPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-
-    final halo = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white.withValues(alpha: 0.08),
-          Colors.white.withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width / 2));
-    canvas.drawCircle(center, size.width / 2, halo);
-
-    final stroke = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = Colors.white.withValues(alpha: 0.12);
-
-    final radius = size.height / 2;
-    final path = Path();
-    for (var i = 0; i < 6; i++) {
-      final angle = (math.pi / 3) * i - math.pi / 2;
-      final point = Offset(
-        center.dx + radius * math.cos(angle),
-        center.dy + radius * math.sin(angle),
-      );
-      i == 0 ? path.moveTo(point.dx, point.dy) : path.lineTo(point.dx, point.dy);
-    }
-    path.close();
-    canvas.drawPath(path, stroke);
-
-    canvas.drawCircle(
-      center,
-      radius * 0.56,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
-        ..color = Colors.white.withValues(alpha: 0.07),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Subtle technical grid wash over the whole background.
-class _GridOverlay extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: CustomPaint(painter: _GridPainter()),
-    );
-  }
-}
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.03)
-      ..strokeWidth = 1;
-    const step = 42.0;
-    for (var x = 0.0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (var y = 0.0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

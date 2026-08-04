@@ -8,19 +8,32 @@ import 'package:machsetu_app/features/auth/forgot_password_screen.dart';
 import 'package:machsetu_app/features/auth/login_screen.dart';
 import 'package:machsetu_app/features/auth/register_screen.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
+import 'package:machsetu_app/features/splash/splash_screen.dart';
 import 'package:machsetu_app/main.dart';
 
 void main() {
   // No stored session by default, so every test starts signed out.
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('splash shows the brand and moves on to login', (tester) async {
+  testWidgets('splash animates the brand in, then moves on to login', (
+    tester,
+  ) async {
     await tester.pumpWidget(const MachSetuApp());
 
-    expect(find.text('SYNCING GLOBAL NODES...'), findsOneWidget);
+    expect(find.text('SYNCING GLOBAL NODES'), findsOneWidget);
+    expect(find.byType(SplashScreen), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 4));
-    await tester.pumpAndSettle();
+    // Halfway through, the wordmark letters have started landing.
+    await tester.pump(const Duration(milliseconds: 1800));
+    expect(find.text('M'), findsOneWidget);
+    expect(find.text('MACHSETU'), findsNothing);
+
+    // The splash loops ambient animations forever, so step the clock by hand
+    // rather than pumpAndSettle-ing while it is still on screen.
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(find.text('Login'), findsWidgets);
