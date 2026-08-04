@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import 'data/sell_options.dart';
 import 'data/sell_store.dart';
 import 'widgets/sell_widgets.dart';
 
-/// Four-step listing wizard: Details → Images → Docs → Review.
+/// Four-step listing wizard mirroring the printed registration form:
+/// Details (seller, machine, commercial, specs) → Images → Docs → Review.
 ///
 /// Nothing is mandatory — a seller can submit a partial listing and the
 /// sourcing desk fills the gaps during verification.
@@ -20,24 +22,6 @@ class SellMachineScreen extends StatefulWidget {
 class _SellMachineScreenState extends State<SellMachineScreen> {
   static const List<String> steps = ['Details', 'Images', 'Docs', 'Review'];
 
-  static const List<String> _categories = [
-    'CNC Machines',
-    'VMC Centers',
-    'Lathes',
-    'Grinding',
-    'EDM',
-    'Multi-Tasking',
-    'Press & Forming',
-  ];
-
-  static const List<String> _conditions = [
-    'Like New',
-    'Excellent',
-    'Good',
-    'Fair',
-    'Needs Repair',
-  ];
-
   /// Bundled photos stand in for a real gallery picker.
   static const List<String> _samplePhotos = [
     'assets/images/machines/haas_vf2ss.jpg',
@@ -47,57 +31,93 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
     'assets/images/machines/workshop_banner.jpg',
   ];
 
-  static const List<(String, String, IconData)> _docTypes = [
-    ('Original Invoice', 'Proof of purchase', Icons.receipt_long_outlined),
-    ('Service History/AMC', 'Maintenance records', Icons.build_outlined),
-    ('Technical Manuals', 'Operator documentation', Icons.menu_book_outlined),
-    ('Warranty Papers', 'Active warranties', Icons.shield_outlined),
-  ];
+  static const Map<String, IconData> _docIcons = {
+    'GST Certificate': Icons.article_outlined,
+    'Ownership Proof': Icons.assignment_ind_outlined,
+    'Purchase Invoice': Icons.receipt_outlined,
+    'AMC Details': Icons.handyman_outlined,
+    'Original Invoice': Icons.receipt_long_outlined,
+    'Maintenance Records': Icons.build_outlined,
+    'Machine Manual': Icons.menu_book_outlined,
+    'Warranty (If Any)': Icons.shield_outlined,
+    'Service History': Icons.history,
+    'Other Documents': Icons.folder_outlined,
+  };
 
   final _draft = MachineDraft();
   final _scroll = ScrollController();
 
-  final _brand = TextEditingController();
-  final _model = TextEditingController();
-  final _year = TextEditingController();
-  final _hours = TextEditingController();
-  final _price = TextEditingController();
-  final _location = TextEditingController();
-  final _serial = TextEditingController();
-  final _description = TextEditingController();
+  /// One controller per text field, created on demand.
+  final Map<String, TextEditingController> _fields = {};
 
   int _step = 0;
   bool _confirmed = false;
   bool _submitting = false;
 
+  TextEditingController _ctrl(String key) =>
+      _fields.putIfAbsent(key, TextEditingController.new);
+
   @override
   void dispose() {
     _scroll.dispose();
-    for (final c in [
-      _brand,
-      _model,
-      _year,
-      _hours,
-      _price,
-      _location,
-      _serial,
-      _description,
-    ]) {
-      c.dispose();
+    for (final controller in _fields.values) {
+      controller.dispose();
     }
     super.dispose();
   }
 
+  String _text(String key) => _fields[key]?.text ?? '';
+
   void _sync() {
     _draft
-      ..brand = _brand.text
-      ..model = _model.text
-      ..year = _year.text
-      ..workingHours = _hours.text
-      ..price = _price.text
-      ..location = _location.text
-      ..serialNumber = _serial.text
-      ..description = _description.text;
+      // Section 1
+      ..sellerName = _text('sellerName')
+      ..companyName = _text('companyName')
+      ..mobile = _text('mobile')
+      ..whatsapp = _text('whatsapp')
+      ..email = _text('email')
+      // Statutory IDs are uppercase by convention.
+      ..gstNumber = _text('gstNumber').toUpperCase()
+      ..panNumber = _text('panNumber').toUpperCase()
+      ..address = _text('address')
+      ..city = _text('city')
+      ..state = _text('state')
+      ..pincode = _text('pincode')
+      // Section 2
+      ..categoryOther = _text('categoryOther')
+      ..machineType = _text('machineType')
+      ..brand = _text('brand')
+      ..model = _text('model')
+      ..year = _text('year')
+      ..installationYear = _text('installationYear')
+      ..countryOfOrigin = _text('countryOfOrigin')
+      ..controller = _text('controller')
+      ..numberOfAxis = _text('numberOfAxis')
+      ..machineCapacity = _text('machineCapacity')
+      ..powerRequirement = _text('powerRequirement')
+      ..maxSpindleSpeed = _text('maxSpindleSpeed')
+      ..weight = _text('weight')
+      ..location = _text('location')
+      ..workingHours = _text('workingHours')
+      ..lastServiceDate = _text('lastServiceDate')
+      ..accessoriesIncluded = _text('accessoriesIncluded')
+      ..serialNumber = _text('serialNumber')
+      ..description = _text('description')
+      // Section 3
+      ..price = _text('price')
+      ..additionalRemarks = _text('additionalRemarks')
+      // Section 4
+      ..tableSize = _text('tableSize')
+      ..lubricationSystem = _text('lubricationSystem')
+      ..electricalPanelCondition = _text('electricalPanelCondition')
+      ..toolMagazineCapacity = _text('toolMagazineCapacity')
+      ..servoMotors = _text('servoMotors')
+      ..toolChangerType = _text('toolChangerType')
+      ..ballScrewCondition = _text('ballScrewCondition')
+      ..coolantSystem = _text('coolantSystem')
+      ..guideways = _text('guideways')
+      ..hydraulicSystem = _text('hydraulicSystem')
+      ..otherSpecifications = _text('otherSpecifications');
   }
 
   void _goTo(int step) {
@@ -115,13 +135,18 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       return;
     }
     setState(() {
-      _draft.images.add(_samplePhotos[_draft.images.length % _samplePhotos.length]);
+      _draft.images.add(
+        _samplePhotos[_draft.images.length % _samplePhotos.length],
+      );
     });
   }
 
   void _addDocument(String category) {
     final index = _draft.documents.length + 1;
-    final slug = category.split('/').first.replaceAll(' ', '_');
+    final slug = category
+        .replaceAll(RegExp(r'[^A-Za-z ]'), '')
+        .trim()
+        .replaceAll(' ', '_');
     setState(() {
       _draft.documents.add(
         SellDocument(
@@ -222,7 +247,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
     return [
       const Text(
         'Submit your machine for verification. Once approved, our team will '
-        'list it for buyers on the marketplace.',
+        'list it for buyers on the marketplace. Every field is optional.',
         style: TextStyle(
           fontSize: 14,
           height: 1.55,
@@ -230,36 +255,166 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
         ),
       ),
       const SizedBox(height: 18),
+
+      // ---- Section 1 -------------------------------------------------
       SellCard(
-        icon: Icons.precision_manufacturing_outlined,
-        title: 'Machine Information',
+        icon: Icons.person_outline,
+        title: 'Seller Information',
         children: [
-          SellDropdown(
-            label: 'Machine Type',
-            hint: 'Select category (e.g. CNC, VMC)',
-            value: _draft.category.isEmpty ? null : _draft.category,
-            options: _categories,
-            onChanged: (value) =>
-                setState(() => _draft.category = value ?? ''),
+          SellField(
+            label: 'Seller / Contact Person Name',
+            hint: 'e.g. Pappu Singh',
+            controller: _ctrl('sellerName'),
+            textCapitalization: TextCapitalization.words,
+          ),
+          SellField(
+            label: 'Company Name',
+            hint: 'e.g. Fortune Gold Machine Tools',
+            controller: _ctrl('companyName'),
+            textCapitalization: TextCapitalization.words,
           ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: SellField(
-                  label: 'Brand / Make',
-                  hint: 'e.g. Haas',
-                  controller: _brand,
+                  label: 'Mobile Number',
+                  hint: '84015 03169',
+                  controller: _ctrl('mobile'),
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'WhatsApp Number',
+                  hint: 'Same as mobile',
+                  controller: _ctrl('whatsapp'),
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SellField(
+            label: 'Email ID',
+            hint: 'you@company.com',
+            controller: _ctrl('email'),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'GST Number',
+                  hint: '24AAACF1234K1ZV',
+                  controller: _ctrl('gstNumber'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'PAN Number',
+                  hint: 'AAACF1234K',
+                  controller: _ctrl('panNumber'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+              ),
+            ],
+          ),
+          SellField(
+            label: 'Complete Address',
+            hint: 'Plot / unit, area, landmark',
+            controller: _ctrl('address'),
+            maxLines: 2,
+            textCapitalization: TextCapitalization.words,
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'City',
+                  hint: 'Rajkot',
+                  controller: _ctrl('city'),
                   textCapitalization: TextCapitalization.words,
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: SellField(
-                  label: 'Model',
-                  hint: 'e.g. VF-2',
-                  controller: _model,
-                  textCapitalization: TextCapitalization.characters,
+                  label: 'State',
+                  hint: 'Gujarat',
+                  controller: _ctrl('state'),
+                  textCapitalization: TextCapitalization.words,
+                ),
+              ),
+            ],
+          ),
+          SellField(
+            label: 'Pincode',
+            hint: '360021',
+            controller: _ctrl('pincode'),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+            ],
+            isLast: true,
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+
+      // ---- Section 2 -------------------------------------------------
+      SellCard(
+        icon: Icons.precision_manufacturing_outlined,
+        title: 'Machine Details',
+        children: [
+          SellCheckboxGroup(
+            label: 'Machine Category (select all that apply)',
+            options: SellOptions.categories,
+            selected: _draft.categories,
+            onToggle: (option) => setState(() {
+              _draft.categories.contains(option)
+                  ? _draft.categories.remove(option)
+                  : _draft.categories.add(option);
+            }),
+          ),
+          if (_draft.categories.contains('Other'))
+            SellField(
+              label: 'Other Category',
+              hint: 'Specify the machine category',
+              controller: _ctrl('categoryOther'),
+              textCapitalization: TextCapitalization.words,
+            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Machine Type',
+                  hint: 'e.g. Vertical Machining Center',
+                  controller: _ctrl('machineType'),
+                  textCapitalization: TextCapitalization.words,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Brand / Make',
+                  hint: 'e.g. Haas',
+                  controller: _ctrl('brand'),
+                  textCapitalization: TextCapitalization.words,
                 ),
               ),
             ],
@@ -269,9 +424,35 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             children: [
               Expanded(
                 child: SellField(
-                  label: 'Year of Mfg.',
+                  label: 'Model',
+                  hint: 'e.g. VF-2',
+                  controller: _ctrl('model'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Manufacturing Year',
                   hint: 'YYYY',
-                  controller: _year,
+                  controller: _ctrl('year'),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(4),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Installation Year',
+                  hint: 'YYYY',
+                  controller: _ctrl('installationYear'),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
@@ -281,13 +462,11 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: SellDropdown(
-                  label: 'Condition',
-                  hint: 'Good',
-                  value: _draft.condition,
-                  options: _conditions,
-                  onChanged: (value) =>
-                      setState(() => _draft.condition = value ?? 'Good'),
+                child: SellField(
+                  label: 'Country of Origin',
+                  hint: 'e.g. Japan',
+                  controller: _ctrl('countryOfOrigin'),
+                  textCapitalization: TextCapitalization.words,
                 ),
               ),
             ],
@@ -297,43 +476,315 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             children: [
               Expanded(
                 child: SellField(
-                  label: 'Working Hours',
-                  hint: 'e.g. 5000',
-                  controller: _hours,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  label: 'Controller',
+                  hint: 'e.g. Fanuc 31i-B',
+                  controller: _ctrl('controller'),
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: SellField(
-                  label: 'Expected Price (₹)',
-                  hint: 'e.g. 1500000',
-                  controller: _price,
+                  label: 'No. of Axis',
+                  hint: 'e.g. 3 Axis',
+                  controller: _ctrl('numberOfAxis'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Machine Capacity / Size',
+                  hint: 'e.g. 760 x 406 x 508 mm',
+                  controller: _ctrl('machineCapacity'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Power Requirement',
+                  hint: 'e.g. 3-Phase 415V',
+                  controller: _ctrl('powerRequirement'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Maximum Spindle Speed',
+                  hint: 'e.g. 12,000 RPM',
+                  controller: _ctrl('maxSpindleSpeed'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Weight of Machine',
+                  hint: 'e.g. 3,175 kg',
+                  controller: _ctrl('weight'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Machine Location',
+                  hint: 'City, State',
+                  controller: _ctrl('location'),
+                  textCapitalization: TextCapitalization.words,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Working Hours',
+                  hint: 'e.g. 5000',
+                  controller: _ctrl('workingHours'),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 ),
               ),
             ],
           ),
-          SellField(
-            label: 'Current Location',
-            hint: 'City, State',
-            controller: _location,
-            textCapitalization: TextCapitalization.words,
+          SellChoice(
+            label: 'Working Status',
+            options: SellOptions.workingStatus,
+            value: _draft.workingStatus,
+            onChanged: (value) => setState(() => _draft.workingStatus = value),
+          ),
+          SellChoice(
+            label: 'Machine Condition',
+            options: SellOptions.conditions,
+            value: _draft.condition,
+            onChanged: (value) => setState(() => _draft.condition = value),
+          ),
+          SellChoice(
+            label: 'Maintenance Status',
+            options: SellOptions.maintenanceStatus,
+            value: _draft.maintenanceStatus,
+            onChanged: (value) =>
+                setState(() => _draft.maintenanceStatus = value),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Last Service Date',
+                  hint: 'DD / MM / YYYY',
+                  controller: _ctrl('lastServiceDate'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Serial Number',
+                  hint: 'Machine SN',
+                  controller: _ctrl('serialNumber'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+              ),
+            ],
           ),
           SellField(
-            label: 'Serial Number',
-            hint: 'Machine SN',
-            controller: _serial,
-            textCapitalization: TextCapitalization.characters,
+            label: 'Accessories Included',
+            hint: 'Tool holders, coolant pump, manuals…',
+            controller: _ctrl('accessoriesIncluded'),
+            maxLines: 3,
           ),
           SellField(
             label: 'Machine Description',
             hint: 'Provide details about specs, condition, included '
                 'accessories, or known issues…',
-            controller: _description,
+            controller: _ctrl('description'),
             maxLines: 5,
+            isLast: true,
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+
+      // ---- Section 3 -------------------------------------------------
+      SellCard(
+        icon: Icons.payments_outlined,
+        title: 'Commercial Information',
+        children: [
+          SellField(
+            label: 'Expected Selling Price (₹)',
+            hint: 'e.g. 1500000',
+            controller: _ctrl('price'),
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          ),
+          SellYesNo(
+            label: 'Negotiable',
+            value: _draft.negotiable,
+            onChanged: (value) => setState(() => _draft.negotiable = value),
+          ),
+          SellYesNo(
+            label: 'GST Available',
+            value: _draft.gstAvailable,
+            onChanged: (value) => setState(() => _draft.gstAvailable = value),
+          ),
+          SellYesNo(
+            label: 'Tax Invoice Available',
+            value: _draft.taxInvoiceAvailable,
+            onChanged: (value) =>
+                setState(() => _draft.taxInvoiceAvailable = value),
+          ),
+          SellYesNo(
+            label: 'Finance / Loan Pending',
+            value: _draft.financePending,
+            onChanged: (value) => setState(() => _draft.financePending = value),
+          ),
+          SellYesNo(
+            label: 'Delivery Available',
+            value: _draft.deliveryAvailable,
+            onChanged: (value) =>
+                setState(() => _draft.deliveryAvailable = value),
+          ),
+          SellYesNo(
+            label: 'Loading Available',
+            value: _draft.loadingAvailable,
+            onChanged: (value) =>
+                setState(() => _draft.loadingAvailable = value),
+          ),
+          const SizedBox(height: 4),
+          SellChoice(
+            label: 'Owner Type',
+            options: SellOptions.ownerTypes,
+            value: _draft.ownerType,
+            onChanged: (value) => setState(() => _draft.ownerType = value),
+          ),
+          SellField(
+            label: 'Remark (If Any)',
+            hint: 'Anything a buyer should know before quoting',
+            controller: _ctrl('additionalRemarks'),
+            maxLines: 3,
+            isLast: true,
+          ),
+        ],
+      ),
+      const SizedBox(height: 16),
+
+      // ---- Section 4 -------------------------------------------------
+      SellCard(
+        icon: Icons.settings_outlined,
+        title: 'Machine Specifications',
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Table Size',
+                  hint: 'e.g. 914 x 356 mm',
+                  controller: _ctrl('tableSize'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Lubrication System',
+                  hint: 'e.g. Automatic',
+                  controller: _ctrl('lubricationSystem'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Tool Magazine Capacity',
+                  hint: 'e.g. 30+1',
+                  controller: _ctrl('toolMagazineCapacity'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Electrical Panel Condition',
+                  hint: 'e.g. Excellent',
+                  controller: _ctrl('electricalPanelCondition'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Tool Changer Type',
+                  hint: 'e.g. Side mount ATC',
+                  controller: _ctrl('toolChangerType'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Servo Motors',
+                  hint: 'Make and health',
+                  controller: _ctrl('servoMotors'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Coolant System',
+                  hint: 'e.g. Through spindle',
+                  controller: _ctrl('coolantSystem'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Ball Screw Condition',
+                  hint: 'e.g. No backlash',
+                  controller: _ctrl('ballScrewCondition'),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SellField(
+                  label: 'Hydraulic System',
+                  hint: 'e.g. Working',
+                  controller: _ctrl('hydraulicSystem'),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: SellField(
+                  label: 'Guideways',
+                  hint: 'e.g. Linear',
+                  controller: _ctrl('guideways'),
+                ),
+              ),
+            ],
+          ),
+          SellField(
+            label: 'Other Specifications',
+            hint: 'Anything else worth listing',
+            controller: _ctrl('otherSpecifications'),
+            maxLines: 3,
             isLast: true,
           ),
         ],
@@ -355,8 +806,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Upload up to 10 clear images of the machine (Front, Side, Control '
-        'Panel, Spindle, Serial Plate).',
+        'Upload up to 10 clear images of the machine, then tick the views you '
+        'have covered.',
         style: TextStyle(
           fontSize: 13.5,
           height: 1.55,
@@ -428,6 +879,28 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             onRemove: () => setState(() => _draft.images.removeAt(index)),
           ),
         ),
+      const SizedBox(height: 22),
+      SellCard(
+        icon: Icons.checklist_rtl,
+        title: 'Required Photos',
+        children: [
+          SellCheckboxGroup(
+            label: 'Tick every view you have provided',
+            options: SellOptions.requiredPhotos,
+            selected: _draft.requiredPhotos,
+            onToggle: (option) => setState(() {
+              _draft.requiredPhotos.contains(option)
+                  ? _draft.requiredPhotos.remove(option)
+                  : _draft.requiredPhotos.add(option);
+            }),
+          ),
+          Text(
+            '${_draft.requiredPhotos.length} of '
+            '${SellOptions.requiredPhotos.length} views ticked',
+            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+        ],
+      ),
     ];
   }
 
@@ -436,7 +909,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
   List<Widget> _docsStep() {
     return [
       const Text(
-        'Upload Technical Documents',
+        'Documents Checklist',
         style: TextStyle(
           fontSize: 22,
           height: 1.25,
@@ -447,7 +920,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       const SizedBox(height: 8),
       const Text(
         'Providing comprehensive documentation increases buyer trust and '
-        'expedites the valuation process.',
+        'expedites the valuation process. A card ticks itself once a file is '
+        'attached.',
         style: TextStyle(
           fontSize: 13.5,
           height: 1.55,
@@ -455,13 +929,13 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
         ),
       ),
       const SizedBox(height: 18),
-      for (final type in _docTypes) ...[
+      for (final type in SellOptions.documentTypes) ...[
         DocTypeCard(
-          title: type.$1,
-          subtitle: type.$2,
-          icon: type.$3,
-          attached: _draft.documents.where((d) => d.category == type.$1).length,
-          onUpload: () => _addDocument(type.$1),
+          title: type,
+          subtitle: 'Not attached',
+          icon: _docIcons[type] ?? Icons.folder_outlined,
+          attached: _draft.documents.where((d) => d.category == type).length,
+          onUpload: () => _addDocument(type),
         ),
         const SizedBox(height: 12),
       ],
@@ -493,6 +967,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
   List<Widget> _reviewStep() {
     _sync();
 
+    String orDash(String value) => value.trim().isEmpty ? '—' : value.trim();
+
     return [
       const Text(
         'Final Review',
@@ -501,6 +977,16 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           fontWeight: FontWeight.w800,
           color: AppColors.navy,
         ),
+      ),
+      const SizedBox(height: 16),
+      SellCard(
+        icon: Icons.person_outline,
+        title: 'Seller Information',
+        onEdit: () => _goTo(0),
+        children: [
+          for (final row in _draft.sellerInfo.rows)
+            SpecRow(label: row.$1, value: orDash(row.$2)),
+        ],
       ),
       const SizedBox(height: 16),
       SellCard(
@@ -514,13 +1000,13 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
               Expanded(
                 child: SummaryPair(
                   label: 'Manufacturer',
-                  value: _draft.brand.isEmpty ? 'Not provided' : _draft.brand,
+                  value: orDash(_draft.brand),
                 ),
               ),
               Expanded(
                 child: SummaryPair(
                   label: 'Model',
-                  value: _draft.model.isEmpty ? 'Not provided' : _draft.model,
+                  value: orDash(_draft.model),
                 ),
               ),
             ],
@@ -532,15 +1018,13 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
               Expanded(
                 child: SummaryPair(
                   label: 'Year',
-                  value: _draft.year.isEmpty ? 'Not provided' : _draft.year,
+                  value: orDash(_draft.year),
                 ),
               ),
               Expanded(
                 child: SummaryPair(
                   label: 'Category',
-                  value: _draft.category.isEmpty
-                      ? 'Not provided'
-                      : _draft.category,
+                  value: orDash(_draft.category),
                   asChip: true,
                 ),
               ),
@@ -548,15 +1032,71 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           ),
           const SizedBox(height: 16),
           const Divider(),
-          const SizedBox(height: 12),
+          SpecRow(label: 'Machine Type', value: orDash(_draft.machineType)),
+          SpecRow(label: 'Controller', value: orDash(_draft.controller)),
+          SpecRow(label: 'No. of Axis', value: orDash(_draft.numberOfAxis)),
+          SpecRow(
+            label: 'Machine Capacity / Size',
+            value: orDash(_draft.machineCapacity),
+          ),
+          SpecRow(
+            label: 'Maximum Spindle Speed',
+            value: orDash(_draft.maxSpindleSpeed),
+          ),
+          SpecRow(
+            label: 'Power Requirement',
+            value: orDash(_draft.powerRequirement),
+          ),
+          SpecRow(label: 'Weight of Machine', value: orDash(_draft.weight)),
+          SpecRow(
+            label: 'Installation Year',
+            value: orDash(_draft.installationYear),
+          ),
+          SpecRow(
+            label: 'Country of Origin',
+            value: orDash(_draft.countryOfOrigin),
+          ),
+          SpecRow(label: 'Machine Location', value: orDash(_draft.location)),
+          SpecRow(label: 'Working Hours', value: orDash(_draft.workingHours)),
+          SpecRow(
+            label: 'Working Status',
+            value: orDash(_draft.workingStatus),
+          ),
+          SpecRow(label: 'Condition', value: orDash(_draft.condition)),
+          SpecRow(
+            label: 'Maintenance Status',
+            value: orDash(_draft.maintenanceStatus),
+          ),
+          SpecRow(
+            label: 'Last Service Date',
+            value: orDash(_draft.lastServiceDate),
+          ),
+          SpecRow(label: 'Serial Number', value: orDash(_draft.serialNumber)),
+          const SizedBox(height: 10),
+          SummaryPair(
+            label: 'Accessories Included',
+            value: orDash(_draft.accessoriesIncluded),
+            block: true,
+          ),
+          const SizedBox(height: 14),
           SummaryPair(
             label: 'Condition Notes',
-            value: _draft.description.isEmpty
+            value: _draft.description.trim().isEmpty
                 ? 'No notes provided — our team will capture these during '
                       'verification.'
                 : _draft.description,
             block: true,
           ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      SellCard(
+        icon: Icons.settings_outlined,
+        title: 'Machine Specifications',
+        onEdit: () => _goTo(0),
+        children: [
+          for (final row in _draft.machineSpecs.rows)
+            SpecRow(label: row.$1, value: orDash(row.$2)),
         ],
       ),
       const SizedBox(height: 16),
@@ -583,12 +1123,18 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                 ),
               ),
             ),
+          const SizedBox(height: 12),
+          SpecRow(
+            label: 'Required views ticked',
+            value: '${_draft.requiredPhotos.length} of '
+                '${SellOptions.requiredPhotos.length}',
+          ),
         ],
       ),
       const SizedBox(height: 16),
       SellCard(
         icon: Icons.description_outlined,
-        title: 'Documents',
+        title: 'Documents (${_draft.documents.length})',
         onEdit: () => _goTo(2),
         children: [
           if (_draft.documents.isEmpty)
@@ -624,7 +1170,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            doc.size,
+                            '${doc.size} • ${doc.category}',
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppColors.textMuted,
@@ -641,7 +1187,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       const SizedBox(height: 16),
       SellCard(
         icon: Icons.payments_outlined,
-        title: 'Pricing Details',
+        title: 'Commercial Information',
         onEdit: () => _goTo(0),
         children: [
           const Text(
@@ -670,10 +1216,20 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          const Divider(),
+          for (final row in _draft.commercialInfo.rows)
+            SpecRow(label: row.$1, value: orDash(row.$2)),
+          const SizedBox(height: 10),
+          SummaryPair(
+            label: 'Remark',
+            value: orDash(_draft.additionalRemarks),
+            block: true,
+          ),
         ],
       ),
       const SizedBox(height: 18),
-      // The whole row toggles, not just the 24px box.
+      // Section 9 — seller declaration.
       GestureDetector(
         onTap: () => setState(() => _confirmed = !_confirmed),
         child: Container(
@@ -682,31 +1238,50 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             color: AppColors.border.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Checkbox(
-                value: _confirmed,
-                activeColor: AppColors.accent,
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(4),
+              const Text(
+                'SELLER DECLARATION',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  letterSpacing: 0.9,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textSecondary,
                 ),
-                onChanged: (value) =>
-                    setState(() => _confirmed = value ?? false),
               ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'I confirm the information provided is accurate, complete, '
-                  'and I am the authorized seller of this equipment.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.5,
-                    color: AppColors.textSecondary,
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: _confirmed,
+                    activeColor: AppColors.accent,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: (value) =>
+                        setState(() => _confirmed = value ?? false),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'I hereby declare that the above information is true and '
+                      'correct to the best of my knowledge. I am the '
+                      'authorized seller/owner of the machine and have the '
+                      'full right to sell it. MachSetu is not responsible for '
+                      'any misrepresentation. I agree to the Terms & '
+                      'Conditions of MachSetu.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.55,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -820,7 +1395,7 @@ class _BottomBar extends StatelessWidget {
                             ],
                           ],
                         ),
-                ),
+                  ),
               ),
             ],
           ),

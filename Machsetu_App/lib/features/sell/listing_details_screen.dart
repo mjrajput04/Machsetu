@@ -111,6 +111,109 @@ class ListingDetailsScreen extends StatelessWidget {
               children: [
                 _HeadCard(listing: listing),
                 const SizedBox(height: 16),
+                if (listing.machineDetailRows.isNotEmpty) ...[
+                  SellCard(
+                    icon: Icons.precision_manufacturing_outlined,
+                    title: 'Machine Details',
+                    children: [
+                      for (final row in listing.machineDetailRows)
+                        SpecRow(label: row.$1, value: row.$2),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (listing.specificationRows.isNotEmpty) ...[
+                  SellCard(
+                    icon: Icons.tune,
+                    title: 'Machine Specifications',
+                    children: [
+                      for (final row in listing.specificationRows)
+                        SpecRow(label: row.$1, value: row.$2),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (listing.commercialRows.isNotEmpty) ...[
+                  SellCard(
+                    icon: Icons.payments_outlined,
+                    title: 'Commercial Information',
+                    children: [
+                      for (final row in listing.commercialRows)
+                        SpecRow(label: row.$1, value: row.$2),
+                      if (listing.additionalRemarks.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        SummaryPair(
+                          label: 'Remark',
+                          value: listing.additionalRemarks,
+                          block: true,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (!listing.inspection.isEmpty) ...[
+                  _InspectionCard(report: listing.inspection),
+                  const SizedBox(height: 16),
+                ],
+                if (listing.seller.rows.any((r) => r.$2.isNotEmpty)) ...[
+                  SellCard(
+                    icon: Icons.person_outline,
+                    title: 'Seller Information',
+                    children: [
+                      for (final row in listing.seller.rows)
+                        if (row.$2.trim().isNotEmpty)
+                          SpecRow(label: row.$1, value: row.$2),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (listing.requiredPhotos.isNotEmpty) ...[
+                  SellCard(
+                    icon: Icons.checklist_rtl,
+                    title: 'Required Photos',
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final view in listing.requiredPhotos)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 11,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.success
+                                    .withValues(alpha: 0.11),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.check,
+                                    size: 13,
+                                    color: AppColors.success,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    view,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (listing.specs.isNotEmpty) ...[
                   SellCard(
                     icon: Icons.settings_outlined,
@@ -325,6 +428,101 @@ class ListingDetailsScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Section 7 — filled by the MachSetu inspector, read-only for the seller.
+class _InspectionCard extends StatelessWidget {
+  const _InspectionCard({required this.report});
+
+  final InspectionReport report;
+
+  static Color _tint(String rating) => switch (rating) {
+    'Excellent' => AppColors.success,
+    'Good' => AppColors.brandBlue,
+    'Average' => AppColors.accent,
+    'Poor' => AppColors.danger,
+    _ => AppColors.textMuted,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return SellCard(
+      icon: Icons.fact_check_outlined,
+      title: 'Inspection Report',
+      children: [
+        for (final point in report.points) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        point.point,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.35,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (point.remark.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          point.remark,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            height: 1.4,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _tint(point.rating).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    point.rating,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: _tint(point.rating),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (report.remarks.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          const Divider(),
+          const SizedBox(height: 12),
+          SummaryPair(
+            label: 'Inspector Remarks',
+            value: report.remarks,
+            block: true,
+          ),
+        ],
+        if (report.inspectorName.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          SpecRow(label: 'Inspector Name', value: report.inspectorName),
+          SpecRow(label: 'Inspection Date', value: report.inspectedOn),
+        ],
+      ],
     );
   }
 }

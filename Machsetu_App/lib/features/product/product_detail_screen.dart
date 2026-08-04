@@ -381,6 +381,94 @@ class _SpecsSection extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 26),
+        _RowGroup(title: 'Machine Details', rows: product.machineDetails),
+        const SizedBox(height: 22),
+        _RowGroup(
+          title: 'Machine Specifications',
+          rows: product.specifications,
+        ),
+        const SizedBox(height: 22),
+        _RowGroup(title: 'Commercial Information', rows: product.commercial),
+      ],
+    );
+  }
+}
+
+/// Label / value table used by the extra spec sections.
+class _RowGroup extends StatelessWidget {
+  const _RowGroup({required this.title, required this.rows});
+
+  final String title;
+  final List<ProductDetailPair> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16.5,
+            fontWeight: FontWeight.w800,
+            color: AppColors.brandBlue,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: Text(
+                          rows[i].label,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 5,
+                        child: Text(
+                          rows[i].value,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 13,
+                            height: 1.35,
+                            fontWeight: FontWeight.w700,
+                            color: rows[i].highlight
+                                ? AppColors.success
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (i != rows.length - 1)
+                  const Divider(height: 1, color: AppColors.border),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }

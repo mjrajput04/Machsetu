@@ -41,6 +41,36 @@ class SellDocument {
   final String uploadedOn;
 }
 
+/// One row of the section 7 inspection report.
+class InspectionPoint {
+  const InspectionPoint({
+    required this.point,
+    required this.rating,
+    this.remark = '',
+  });
+
+  final String point;
+  final String rating;
+  final String remark;
+}
+
+/// Inspector-filled portion of the registration form.
+class InspectionReport {
+  const InspectionReport({
+    required this.points,
+    this.remarks = '',
+    this.inspectorName = '',
+    this.inspectedOn = '',
+  });
+
+  final List<InspectionPoint> points;
+  final String remarks;
+  final String inspectorName;
+  final String inspectedOn;
+
+  bool get isEmpty => points.isEmpty;
+}
+
 class ListingEvent {
   const ListingEvent({
     required this.title,
@@ -82,6 +112,25 @@ class SellListing {
     this.activeInquiries = 0,
     this.soldOn,
     this.icon = Icons.precision_manufacturing,
+    this.seller = const SellerInfo(),
+    this.machineType = '',
+    this.installationYear = '',
+    this.countryOfOrigin = '',
+    this.controller = '',
+    this.numberOfAxis = '',
+    this.machineCapacity = '',
+    this.powerRequirement = '',
+    this.maxSpindleSpeed = '',
+    this.weight = '',
+    this.workingStatus = '',
+    this.maintenanceStatus = '',
+    this.lastServiceDate = '',
+    this.accessoriesIncluded = '',
+    this.commercial = const CommercialInfo(),
+    this.specifications = const MachineSpecs(),
+    this.requiredPhotos = const [],
+    this.additionalRemarks = '',
+    this.inspection = const InspectionReport(points: []),
   });
 
   final String reference;
@@ -108,7 +157,56 @@ class SellListing {
   final String? soldOn;
   final IconData icon;
 
+  // ---- Registration-form sections carried through from the seller wizard ---
+  final SellerInfo seller;
+  final String machineType;
+  final String installationYear;
+  final String countryOfOrigin;
+  final String controller;
+  final String numberOfAxis;
+  final String machineCapacity;
+  final String powerRequirement;
+  final String maxSpindleSpeed;
+  final String weight;
+  final String workingStatus;
+  final String maintenanceStatus;
+  final String lastServiceDate;
+  final String accessoriesIncluded;
+  final CommercialInfo commercial;
+  final MachineSpecs specifications;
+  final List<String> requiredPhotos;
+  final String additionalRemarks;
+  final InspectionReport inspection;
+
   bool get isSold => state == ListingState.sold;
+
+  /// Section 2 rows that actually carry a value.
+  List<(String, String)> get machineDetailRows => _nonEmpty([
+    ('Machine Type', machineType),
+    ('Controller', controller),
+    ('No. of Axis', numberOfAxis),
+    ('Machine Capacity / Size', machineCapacity),
+    ('Maximum Spindle Speed', maxSpindleSpeed),
+    ('Power Requirement', powerRequirement),
+    ('Weight of Machine', weight),
+    ('Installation Year', installationYear),
+    ('Country of Origin', countryOfOrigin),
+    ('Working Status', workingStatus),
+    ('Maintenance Status', maintenanceStatus),
+    ('Last Service Date', lastServiceDate),
+    ('Serial Number', serialNumber),
+    ('Accessories Included', accessoriesIncluded),
+  ]);
+
+  /// Section 4 rows that actually carry a value.
+  List<(String, String)> get specificationRows =>
+      _nonEmpty(specifications.rows);
+
+  /// Section 3 rows.
+  List<(String, String)> get commercialRows => _nonEmpty(commercial.rows);
+
+  static List<(String, String)> _nonEmpty(List<(String, String)> rows) =>
+      rows.where((r) => r.$2.trim().isNotEmpty).toList();
 
   /// Progress trail shown on the listing detail page.
   List<ListingEvent> get timeline {
@@ -153,24 +251,248 @@ class SellListing {
   }
 }
 
+/// Section 1 — seller and company identity.
+class SellerInfo {
+  const SellerInfo({
+    this.name = '',
+    this.company = '',
+    this.mobile = '',
+    this.whatsapp = '',
+    this.email = '',
+    this.gstNumber = '',
+    this.panNumber = '',
+    this.address = '',
+    this.city = '',
+    this.state = '',
+    this.pincode = '',
+  });
+
+  final String name;
+  final String company;
+  final String mobile;
+  final String whatsapp;
+  final String email;
+  final String gstNumber;
+  final String panNumber;
+  final String address;
+  final String city;
+  final String state;
+  final String pincode;
+
+  List<(String, String)> get rows => [
+    ('Contact Person', name),
+    ('Company Name', company),
+    ('Mobile Number', mobile),
+    ('WhatsApp Number', whatsapp),
+    ('Email ID', email),
+    ('GST Number', gstNumber),
+    ('PAN Number', panNumber),
+    ('Address', address),
+    ('City', city),
+    ('State', state),
+    ('Pincode', pincode),
+  ];
+}
+
+/// Section 3 — commercial terms.
+class CommercialInfo {
+  const CommercialInfo({
+    this.negotiable,
+    this.gstAvailable,
+    this.taxInvoiceAvailable,
+    this.financePending,
+    this.deliveryAvailable,
+    this.loadingAvailable,
+    this.ownerType = '',
+  });
+
+  /// null means the seller left the Yes/No pair blank.
+  final bool? negotiable;
+  final bool? gstAvailable;
+  final bool? taxInvoiceAvailable;
+  final bool? financePending;
+  final bool? deliveryAvailable;
+  final bool? loadingAvailable;
+  final String ownerType;
+
+  static String _yn(bool? value) => value == null
+      ? ''
+      : value
+      ? 'Yes'
+      : 'No';
+
+  List<(String, String)> get rows => [
+    ('Negotiable', _yn(negotiable)),
+    ('GST Available', _yn(gstAvailable)),
+    ('Tax Invoice Available', _yn(taxInvoiceAvailable)),
+    ('Finance / Loan Pending', _yn(financePending)),
+    ('Owner Type', ownerType),
+    ('Delivery Available', _yn(deliveryAvailable)),
+    ('Loading Available', _yn(loadingAvailable)),
+  ];
+}
+
+/// Section 4 — machine specifications.
+class MachineSpecs {
+  const MachineSpecs({
+    this.tableSize = '',
+    this.lubricationSystem = '',
+    this.electricalPanelCondition = '',
+    this.toolMagazineCapacity = '',
+    this.servoMotors = '',
+    this.toolChangerType = '',
+    this.ballScrewCondition = '',
+    this.coolantSystem = '',
+    this.guideways = '',
+    this.hydraulicSystem = '',
+    this.otherSpecifications = '',
+  });
+
+  final String tableSize;
+  final String lubricationSystem;
+  final String electricalPanelCondition;
+  final String toolMagazineCapacity;
+  final String servoMotors;
+  final String toolChangerType;
+  final String ballScrewCondition;
+  final String coolantSystem;
+  final String guideways;
+  final String hydraulicSystem;
+  final String otherSpecifications;
+
+  List<(String, String)> get rows => [
+    ('Table Size', tableSize),
+    ('Lubrication System', lubricationSystem),
+    ('Electrical Panel Condition', electricalPanelCondition),
+    ('Tool Magazine Capacity', toolMagazineCapacity),
+    ('Servo Motors', servoMotors),
+    ('Tool Changer Type', toolChangerType),
+    ('Ball Screw Condition', ballScrewCondition),
+    ('Coolant System', coolantSystem),
+    ('Guideways', guideways),
+    ('Hydraulic System', hydraulicSystem),
+    ('Other Specifications', otherSpecifications),
+  ];
+}
+
 /// Mutable form state carried across the four wizard steps.
 ///
 /// Every field is optional by design — sellers can submit a partial listing
 /// and the sourcing desk fills the gaps during verification.
 class MachineDraft {
-  String category = '';
+  // Section 1 — seller information.
+  String sellerName = '';
+  String companyName = '';
+  String mobile = '';
+  String whatsapp = '';
+  String email = '';
+  String gstNumber = '';
+  String panNumber = '';
+  String address = '';
+  String city = '';
+  String state = '';
+  String pincode = '';
+
+  // Section 2 — machine details.
+  final Set<String> categories = {};
+  String categoryOther = '';
+  String machineType = '';
   String brand = '';
   String model = '';
   String year = '';
-  String condition = 'Good';
-  String workingHours = '';
-  String price = '';
+  String installationYear = '';
+  String countryOfOrigin = '';
+  String controller = '';
+  String numberOfAxis = '';
+  String machineCapacity = '';
+  String powerRequirement = '';
+  String maxSpindleSpeed = '';
+  String weight = '';
   String location = '';
+  String workingHours = '';
+  String workingStatus = '';
+  String condition = 'Good';
+  String maintenanceStatus = '';
+  String lastServiceDate = '';
+  String accessoriesIncluded = '';
   String serialNumber = '';
   String description = '';
 
+  // Section 3 — commercial information.
+  String price = '';
+  bool? negotiable;
+  bool? gstAvailable;
+  bool? taxInvoiceAvailable;
+  bool? financePending;
+  bool? deliveryAvailable;
+  bool? loadingAvailable;
+  String ownerType = '';
+  String additionalRemarks = '';
+
+  // Section 4 — machine specifications.
+  String tableSize = '';
+  String lubricationSystem = '';
+  String electricalPanelCondition = '';
+  String toolMagazineCapacity = '';
+  String servoMotors = '';
+  String toolChangerType = '';
+  String ballScrewCondition = '';
+  String coolantSystem = '';
+  String guideways = '';
+  String hydraulicSystem = '';
+  String otherSpecifications = '';
+
+  // Sections 5 & 6 — attachments.
   final List<String> images = [];
   final List<SellDocument> documents = [];
+  final Set<String> requiredPhotos = {};
+
+  /// Ticked categories, with the free-text "Other" value folded in.
+  String get category {
+    final picked = categories.where((c) => c != 'Other').toList();
+    if (categories.contains('Other') && categoryOther.trim().isNotEmpty) {
+      picked.add(categoryOther.trim());
+    }
+    return picked.join(' • ');
+  }
+
+  SellerInfo get sellerInfo => SellerInfo(
+    name: sellerName,
+    company: companyName,
+    mobile: mobile,
+    whatsapp: whatsapp,
+    email: email,
+    gstNumber: gstNumber,
+    panNumber: panNumber,
+    address: address,
+    city: city,
+    state: state,
+    pincode: pincode,
+  );
+
+  CommercialInfo get commercialInfo => CommercialInfo(
+    negotiable: negotiable,
+    gstAvailable: gstAvailable,
+    taxInvoiceAvailable: taxInvoiceAvailable,
+    financePending: financePending,
+    deliveryAvailable: deliveryAvailable,
+    loadingAvailable: loadingAvailable,
+    ownerType: ownerType,
+  );
+
+  MachineSpecs get machineSpecs => MachineSpecs(
+    tableSize: tableSize,
+    lubricationSystem: lubricationSystem,
+    electricalPanelCondition: electricalPanelCondition,
+    toolMagazineCapacity: toolMagazineCapacity,
+    servoMotors: servoMotors,
+    toolChangerType: toolChangerType,
+    ballScrewCondition: ballScrewCondition,
+    coolantSystem: coolantSystem,
+    guideways: guideways,
+    hydraulicSystem: hydraulicSystem,
+    otherSpecifications: otherSpecifications,
+  );
 
   String get displayTitle {
     final parts = [brand, model].where((p) => p.trim().isNotEmpty);
@@ -255,6 +577,24 @@ class SellStore extends ChangeNotifier {
       documents: List.of(draft.documents),
       specs: const [],
       features: const [],
+      seller: draft.sellerInfo,
+      machineType: draft.machineType,
+      installationYear: draft.installationYear,
+      countryOfOrigin: draft.countryOfOrigin,
+      controller: draft.controller,
+      numberOfAxis: draft.numberOfAxis,
+      machineCapacity: draft.machineCapacity,
+      powerRequirement: draft.powerRequirement,
+      maxSpindleSpeed: draft.maxSpindleSpeed,
+      weight: draft.weight,
+      workingStatus: draft.workingStatus,
+      maintenanceStatus: draft.maintenanceStatus,
+      lastServiceDate: draft.lastServiceDate,
+      accessoriesIncluded: draft.accessoriesIncluded,
+      commercial: draft.commercialInfo,
+      specifications: draft.machineSpecs,
+      requiredPhotos: draft.requiredPhotos.toList(),
+      additionalRemarks: draft.additionalRemarks,
     );
 
     _listings.insert(0, listing);
@@ -321,10 +661,99 @@ class SellStore extends ChangeNotifier {
           SellDocument(
             name: 'Service History Log.pdf',
             size: '3.4 MB',
-            category: 'Service History/AMC',
+            category: 'Service History',
             uploadedOn: 'Uploaded Oct 12',
           ),
         ],
+        seller: const SellerInfo(
+          name: 'Pappu Singh',
+          company: 'Fortune Gold Machine Tools',
+          mobile: '84015 03169',
+          whatsapp: '84015 03169',
+          email: 'sales@fortunegold.in',
+          gstNumber: '24AAACF1234K1ZV',
+          panNumber: 'AAACF1234K',
+          address: 'Fortune Gold, Metoda, Lodhika',
+          city: 'Rajkot',
+          state: 'Gujarat',
+          pincode: '360021',
+        ),
+        machineType: 'Vertical Machining Center',
+        installationYear: '2021',
+        countryOfOrigin: 'USA',
+        controller: 'Haas Next Gen Control',
+        numberOfAxis: '3 Axis',
+        machineCapacity: '760 x 406 x 508 mm',
+        powerRequirement: '3-Phase 415V, 22.4 kVA',
+        maxSpindleSpeed: '12,000 RPM',
+        weight: '3,175 kg',
+        workingStatus: 'Running',
+        maintenanceStatus: 'Regular',
+        lastServiceDate: '18 Aug 2026',
+        accessoriesIncluded: 'Tool holders (20), coolant pump, chip auger, '
+            'operator manual, levelling pads',
+        additionalRemarks: 'Machine is under power and can be demonstrated '
+            'under load at the seller site.',
+        commercial: const CommercialInfo(
+          negotiable: true,
+          gstAvailable: true,
+          taxInvoiceAvailable: true,
+          financePending: false,
+          deliveryAvailable: true,
+          loadingAvailable: true,
+          ownerType: '1st Owner',
+        ),
+        specifications: const MachineSpecs(
+          tableSize: '914 x 356 mm',
+          lubricationSystem: 'Automatic centralised',
+          electricalPanelCondition: 'Excellent',
+          toolMagazineCapacity: '30+1 Side Mount',
+          servoMotors: 'Yaskawa AC servo — healthy',
+          toolChangerType: 'Side mount ATC',
+          ballScrewCondition: 'Excellent, no backlash',
+          coolantSystem: 'Through spindle + flood',
+          guideways: 'Linear guideways',
+          hydraulicSystem: 'Not applicable',
+          otherSpecifications: 'Rigid tapping, programmable coolant',
+        ),
+        requiredPhotos: const [
+          'Front View',
+          'Back View',
+          'Controller Panel',
+          'Name Plate',
+          'Chuck / Spindle',
+          'Working Condition',
+        ],
+        inspection: const InspectionReport(
+          inspectorName: 'R. Deshmukh',
+          inspectedOn: '13 Oct 2026',
+          remarks: 'Machine holds tolerance within spec. Minor cosmetic wear '
+              'on the front door. Recommended for listing without reservation.',
+          points: [
+            InspectionPoint(point: 'Machine Accuracy', rating: 'Excellent'),
+            InspectionPoint(point: 'Spindle Condition', rating: 'Excellent'),
+            InspectionPoint(
+              point: 'Axis Movement (X/Y/Z)',
+              rating: 'Excellent',
+            ),
+            InspectionPoint(point: 'Ball Screw Condition', rating: 'Good'),
+            InspectionPoint(point: 'Tool Changer Condition', rating: 'Good'),
+            InspectionPoint(point: 'Coolant System', rating: 'Good'),
+            InspectionPoint(
+              point: 'Hydraulic System',
+              rating: 'Not Applicable',
+            ),
+            InspectionPoint(point: 'Electrical Panel', rating: 'Excellent'),
+            InspectionPoint(
+              point: 'Leakage',
+              rating: 'Good',
+              remark: 'No active leaks observed',
+            ),
+            InspectionPoint(point: 'Noise', rating: 'Good'),
+            InspectionPoint(point: 'Vibration', rating: 'Excellent'),
+            InspectionPoint(point: 'Overall Condition', rating: 'Excellent'),
+          ],
+        ),
       ),
       SellListing(
         reference: 'SN-7741220B',

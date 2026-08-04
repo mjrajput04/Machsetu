@@ -54,6 +54,9 @@ class Product {
     required this.images,
     required this.heroSpecs,
     required this.detailPairs,
+    required this.machineDetails,
+    required this.specifications,
+    required this.commercial,
     required this.overview,
     required this.tags,
     required this.documents,
@@ -73,6 +76,15 @@ class Product {
   final List<String> images;
   final List<ProductSpec> heroSpecs;
   final List<ProductDetailPair> detailPairs;
+
+  /// Section 2 of the registration form.
+  final List<ProductDetailPair> machineDetails;
+
+  /// Section 4 of the registration form.
+  final List<ProductDetailPair> specifications;
+
+  /// Section 3 of the registration form.
+  final List<ProductDetailPair> commercial;
   final List<String> overview;
   final List<String> tags;
   final List<ProductDocument> documents;
@@ -134,6 +146,50 @@ class ProductCatalog {
     ProductDetailPair('Condition', 'In Stock (New)', highlight: true),
   ];
 
+  /// Section 2 — machine details. No overlap with [_heroSpecs] or
+  /// [_detailPairs]; spindle speed, power and tool stations live there.
+  static const List<ProductDetailPair> _machineDetails = [
+    ProductDetailPair('Machine Type', 'Vertical Machining Center'),
+    ProductDetailPair('Controller', 'Fanuc 31i-B'),
+    ProductDetailPair('No. of Axis', '3 Axis'),
+    ProductDetailPair('Machine Capacity / Size', '1020 x 560 x 510 mm'),
+    ProductDetailPair('Weight of Machine', '3,175 kg'),
+    ProductDetailPair('Installation Year', '2022'),
+    ProductDetailPair('Country of Origin', 'Japan'),
+    ProductDetailPair('Working Hours', '4,200 hrs'),
+    ProductDetailPair('Working Status', 'Running'),
+    ProductDetailPair('Maintenance Status', 'Regular'),
+    ProductDetailPair('Last Service Date', '18 Aug 2026'),
+    ProductDetailPair(
+      'Accessories Included',
+      'Tool holders, coolant pump, chip auger, manuals',
+    ),
+  ];
+
+  /// Section 4 — machine specifications.
+  static const List<ProductDetailPair> _specifications = [
+    ProductDetailPair('Table Size', '914 x 356 mm'),
+    ProductDetailPair('Lubrication System', 'Automatic centralised'),
+    ProductDetailPair('Electrical Panel Condition', 'Excellent'),
+    ProductDetailPair('Tool Changer Type', 'Side mount ATC'),
+    ProductDetailPair('Servo Motors', 'AC servo — healthy'),
+    ProductDetailPair('Ball Screw Condition', 'Excellent, no backlash'),
+    ProductDetailPair('Coolant System', 'Through spindle + flood'),
+    ProductDetailPair('Guideways', 'Linear guideways'),
+    ProductDetailPair('Hydraulic System', 'Working'),
+  ];
+
+  /// Section 3 — commercial terms.
+  static const List<ProductDetailPair> _commercial = [
+    ProductDetailPair('Negotiable', 'Yes'),
+    ProductDetailPair('GST Available', 'Yes'),
+    ProductDetailPair('Tax Invoice Available', 'Yes'),
+    ProductDetailPair('Owner Type', '1st Owner'),
+    ProductDetailPair('Delivery Available', 'Yes'),
+    ProductDetailPair('Loading Available', 'Yes'),
+    ProductDetailPair('Finance / Loan Pending', 'No'),
+  ];
+
   static const List<String> _tags = [
     'ISO 9001 Certified',
     'CE Compliant',
@@ -165,6 +221,19 @@ class ProductCatalog {
       images: [?image, ..._contextShots],
       heroSpecs: _heroSpecs,
       detailPairs: _detailPairs,
+      machineDetails: [
+        ProductDetailPair('Brand / Make', brand),
+        if (equipmentType != 'Industrial Equipment')
+          ProductDetailPair('Machine Type', equipmentType),
+        // The static list already carries a Machine Type fallback.
+        ..._machineDetails.where(
+          (p) =>
+              p.label != 'Machine Type' ||
+              equipmentType == 'Industrial Equipment',
+        ),
+      ],
+      specifications: _specifications,
+      commercial: _commercial,
       overview: [
         'The $shortName represents the pinnacle of multi-axis machining '
             'efficiency. Engineered for high-volume automotive and aerospace '
