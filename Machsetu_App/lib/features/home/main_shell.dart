@@ -81,9 +81,9 @@ class _MainShellState extends State<MainShell> {
               heroTag: 'home-list-machine-fab',
               backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('List a machine — coming soon')),
-              ),
+              onPressed: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.sellMachine),
+              tooltip: 'Sell your machine',
               child: const Icon(Icons.add),
             )
           : null,

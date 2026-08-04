@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'features/orders/data/order.dart';
+import 'features/sell/data/sell_store.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,7 @@ void main() {
   // Sample pipeline for the Orders screen — delete this line to launch with
   // an empty order history.
   OrderStore.instance.seedDemoOrders();
+  SellStore.instance.seedDemoListings();
   runApp(const MachSetuApp());
 }
 

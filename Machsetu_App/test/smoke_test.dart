@@ -16,6 +16,11 @@ import 'package:machsetu_app/features/profile/edit_profile_screen.dart';
 import 'package:machsetu_app/features/profile/my_inquiries_screen.dart';
 import 'package:machsetu_app/features/profile/profile_screen.dart';
 import 'package:machsetu_app/features/profile/security_screen.dart';
+import 'package:machsetu_app/features/sell/data/sell_store.dart';
+import 'package:machsetu_app/features/sell/listing_details_screen.dart';
+import 'package:machsetu_app/features/sell/my_listings_screen.dart';
+import 'package:machsetu_app/features/sell/sell_machine_screen.dart';
+import 'package:machsetu_app/features/sell/submission_status_screen.dart';
 import 'package:machsetu_app/features/support/help_support_screen.dart';
 import 'package:machsetu_app/features/support/terms_screen.dart';
 import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
@@ -684,6 +689,153 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Chrome • Windows 11'), findsNothing);
+  });
+
+  testWidgets('the sell wizard submits with every field left blank', (
+    tester,
+  ) async {
+    SellStore.instance.clear();
+    addTearDown(SellStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const SellMachineScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Step 1: Details'), findsOneWidget);
+    expect(find.text('Machine Information'), findsOneWidget);
+
+    // Straight through all four steps without typing anything.
+    await tester.tap(find.text('Next Step'));
+    await tester.pumpAndSettle();
+    expect(find.text('Upload Images'), findsOneWidget);
+
+    await tester.tap(find.text('Next Step'));
+    await tester.pumpAndSettle();
+    expect(find.text('Upload Technical Documents'), findsOneWidget);
+
+    await tester.tap(find.text('Next Step'));
+    await tester.pumpAndSettle();
+    expect(find.text('Final Review'), findsOneWidget);
+
+    // Submit stays disabled until the seller confirms.
+    final submit = tester.widget<ElevatedButton>(
+      find.ancestor(
+        of: find.text('Submit for Verification'),
+        matching: find.byType(ElevatedButton),
+      ),
+    );
+    expect(submit.onPressed, isNull);
+
+    final confirmRow = find.textContaining('I confirm the information');
+    final reviewPage = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(confirmRow, reviewPage, const Offset(0, -200));
+    // dragUntilVisible stops the moment it is on screen, which leaves it
+    // under the fixed action bar — scroll clear of it before tapping.
+    await tester.drag(reviewPage, const Offset(0, -180));
+    await tester.pumpAndSettle();
+
+    // The whole row is the toggle, not just the small checkbox.
+    await tester.tap(confirmRow);
+    await tester.pumpAndSettle();
+
+    // Confirming enables the submit button.
+    final ready = tester.widget<ElevatedButton>(
+      find.ancestor(
+        of: find.text('Submit for Verification'),
+        matching: find.byType(ElevatedButton),
+      ),
+    );
+    expect(ready.onPressed, isNotNull);
+
+    await tester.tap(find.text('Submit for Verification'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SubmissionStatusScreen), findsOneWidget);
+    expect(find.text('Machine Submitted Successfully'), findsOneWidget);
+    expect(find.text('Current Status: Pending Review'), findsOneWidget);
+    expect(SellStore.instance.listings.length, 1);
+    expect(SellStore.instance.listings.first.title, 'Untitled machine');
+    expect(SellStore.instance.listings.first.price, 'Price on request');
+  });
+
+  testWidgets('submission status toggles to the timeline and tracks', (
+    tester,
+  ) async {
+    SellStore.instance
+      ..clear()
+      ..seedDemoListings();
+    addTearDown(SellStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: SubmissionStatusScreen(
+          listing: SellStore.instance.listings.first,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Timeline View'));
+    await tester.pumpAndSettle();
+    expect(find.text('Listing Submitted'), findsOneWidget);
+    expect(find.text('Broker Review Completed'), findsOneWidget);
+
+    await tester.tap(find.text('Track Submission'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListingDetailsScreen), findsOneWidget);
+    expect(find.text('Live on Marketplace'), findsWidgets);
+    expect(find.text('Technical Specifications'), findsOneWidget);
+  });
+
+  testWidgets('my listings searches and filters the seller inventory', (
+    tester,
+  ) async {
+    SellStore.instance
+      ..clear()
+      ..seedDemoListings();
+    addTearDown(SellStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MyListingsScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Listings'), findsOneWidget);
+    expect(find.text('Haas VF-2SS'), findsOneWidget);
+
+    // Search first — it narrows to a single card without any scrolling.
+    await tester.enterText(find.byType(TextField).first, 'doosan');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Doosan Puma 2600SY'), findsOneWidget);
+    expect(find.text('Haas VF-2SS'), findsNothing);
+    expect(find.text('Sold'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Haas VF-2SS'), findsOneWidget);
+
+    // Then the status chip. Scrolling the row disposes the chips behind it,
+    // so this is the last interaction in the test.
+    await tester.ensureVisible(find.text('Pending Review').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pending Review').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mazak Integrex i-200ST'), findsOneWidget);
+    expect(find.text('Haas VF-2SS'), findsNothing);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

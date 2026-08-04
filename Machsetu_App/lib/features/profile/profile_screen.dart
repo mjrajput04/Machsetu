@@ -151,6 +151,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               children: [
                 _SettingRow(
+                  icon: Icons.sell_outlined,
+                  title: 'Sell Your Machine',
+                  detail: 'List a machine for verification and reach verified '
+                      'buyers',
+                  highlight: true,
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.sellMachine),
+                ),
+                _SettingRow(
+                  icon: Icons.storefront_outlined,
+                  title: 'My Listings',
+                  detail: 'Live, pending and sold machines you have listed',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.myListings),
+                ),
+                _SettingRow(
                   icon: Icons.badge_outlined,
                   title: 'Edit Profile',
                   detail: 'Update personal details, company info, and contact '
@@ -371,6 +387,7 @@ class _SettingRow extends StatelessWidget {
     required this.detail,
     required this.onTap,
     this.danger = false,
+    this.highlight = false,
     this.isLast = false,
   });
 
@@ -379,11 +396,18 @@ class _SettingRow extends StatelessWidget {
   final String detail;
   final VoidCallback onTap;
   final bool danger;
+
+  /// Draws the row in accent orange — used for the seller call to action.
+  final bool highlight;
   final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    final tint = danger ? AppColors.danger : AppColors.brandBlue;
+    final tint = danger
+        ? AppColors.danger
+        : highlight
+        ? AppColors.accent
+        : AppColors.brandBlue;
 
     return Column(
       children: [
@@ -413,7 +437,11 @@ class _SettingRow extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
-                          color: danger ? AppColors.danger : AppColors.navy,
+                          color: danger
+                              ? AppColors.danger
+                              : highlight
+                              ? AppColors.accent
+                              : AppColors.navy,
                         ),
                       ),
                       const SizedBox(height: 3),
