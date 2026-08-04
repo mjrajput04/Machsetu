@@ -57,7 +57,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _placing = false);
 
     // Snapshot the basket into an order, then hand off to the confirmation.
-    final order = OrderStore.instance.place(CartStore.instance);
+    final order = OrderStore.instance.place(
+      CartStore.instance,
+      location: _city.text.trim(),
+    );
     CartStore.instance.clear();
 
     await Navigator.of(context).pushReplacementNamed(

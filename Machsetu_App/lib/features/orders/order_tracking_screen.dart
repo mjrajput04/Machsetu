@@ -68,7 +68,7 @@ class OrderTrackingScreen extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Initiated on ${order.placedOn} • ${order.headline}',
+            'Initiated on ${order.placedOn} • ${order.title}',
             style: const TextStyle(
               fontSize: 12.5,
               height: 1.45,

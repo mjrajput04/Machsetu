@@ -9,6 +9,7 @@ import 'package:machsetu_app/core/utils/currency.dart';
 import 'package:machsetu_app/features/checkout/checkout_screen.dart';
 import 'package:machsetu_app/features/orders/data/order.dart';
 import 'package:machsetu_app/features/orders/order_success_screen.dart';
+import 'package:machsetu_app/features/orders/orders_screen.dart';
 import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/cart/data/cart_store.dart';
@@ -433,6 +434,71 @@ void main() {
     expect(find.text('ACTIVE'), findsOneWidget);
     expect(find.text('Under Review'), findsOneWidget);
     expect(find.text('Delivered'), findsOneWidget);
+  });
+
+  testWidgets('orders page splits active inquiries from history', (
+    tester,
+  ) async {
+    OrderStore.instance
+      ..clear()
+      ..seedDemoOrders();
+    addTearDown(OrderStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const OrdersScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Orders & Inquiries'), findsOneWidget);
+    expect(find.text('New Inquiry'), findsOneWidget);
+    expect(find.text('ACTIVE INQUIRIES'), findsOneWidget);
+    expect(find.text('AX-900 Precision Lathe'), findsOneWidget);
+    expect(find.text('Under Review'), findsOneWidget);
+    expect(find.text('View Details'), findsWidgets);
+
+    final page = find.byType(Scrollable).first;
+    await tester.dragUntilVisible(
+      find.text('ORDER HISTORY'),
+      page,
+      const Offset(0, -220),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Terraform Gen-SET 500'), findsOneWidget);
+    expect(find.text('Delivered'), findsOneWidget);
+    expect(find.text('Re-order'), findsOneWidget);
+    expect(find.text('Cancelled'), findsOneWidget);
+    expect(find.text('Archive'), findsOneWidget);
+  });
+
+  testWidgets('filtering by status narrows the list', (tester) async {
+    OrderStore.instance
+      ..clear()
+      ..seedDemoOrders();
+    addTearDown(OrderStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const OrdersScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Filter by Status'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(OrderStatus.cancelled.label).last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Laser-Cut V3 Pro'), findsOneWidget);
+    expect(find.text('AX-900 Precision Lathe'), findsNothing);
+    expect(find.text('ACTIVE INQUIRIES'), findsNothing);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

@@ -1,6 +1,38 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../cart/data/cart_store.dart';
+
+/// Where an order sits in the procurement pipeline.
+enum OrderStatus {
+  inquiryReceived('Inquiry Received'),
+  underReview('Under Review'),
+  brokerContact('Broker Contacting You'),
+  confirmed('Order Confirmed'),
+  delivered('Delivered'),
+  cancelled('Cancelled');
+
+  const OrderStatus(this.label);
+
+  final String label;
+
+  /// Delivered and cancelled orders drop into the history section.
+  bool get isClosed => this == delivered || this == cancelled;
+
+  Color get foreground => switch (this) {
+    OrderStatus.inquiryReceived => AppColors.brandBlue,
+    OrderStatus.underReview => AppColors.accentDark,
+    OrderStatus.brokerContact => AppColors.accentDark,
+    OrderStatus.confirmed => AppColors.success,
+    OrderStatus.delivered => AppColors.textSecondary,
+    OrderStatus.cancelled => AppColors.danger,
+  };
+
+  Color get background => switch (this) {
+    OrderStatus.delivered => AppColors.border.withValues(alpha: 0.7),
+    _ => foreground.withValues(alpha: 0.13),
+  };
+}
 
 /// One stop on the procurement timeline.
 class TrackingStage {
@@ -25,6 +57,9 @@ class Order {
   const Order({
     required this.reference,
     required this.placedOn,
+    required this.title,
+    required this.status,
+    required this.location,
     required this.items,
     required this.subtotal,
     required this.freight,
@@ -33,14 +68,24 @@ class Order {
     required this.equipmentType,
     required this.logisticsMode,
     required this.stages,
+    this.thumbnail,
+    this.note,
     this.stageIndex = 1,
+    this.icon = Icons.precision_manufacturing,
   });
 
   /// Buyer-facing order number, e.g. `#CP-99203`.
   final String reference;
 
-  /// Pre-formatted placement date, e.g. `October 24, 2026`.
+  /// Pre-formatted placement date, e.g. `Oct 24, 2026`.
   final String placedOn;
+
+  /// Headline machine name.
+  final String title;
+  final OrderStatus status;
+
+  /// Delivery destination shown on the order card.
+  final String location;
   final List<CartItem> items;
   final double subtotal;
   final double freight;
@@ -49,18 +94,19 @@ class Order {
   final String equipmentType;
   final String logisticsMode;
   final List<TrackingStage> stages;
+  final String? thumbnail;
+
+  /// Extra line on closed orders — "Quality Verified", "Replaced by …".
+  final String? note;
 
   /// Index of the stage currently in progress; everything before it is done.
   final int stageIndex;
+  final IconData icon;
 
   /// Longer id used on the tracking screen, e.g. `#CP-99203-AX`.
   String get trackingId => '$reference-AX';
 
-  /// Headline machine for the order summary line.
-  String get headline =>
-      items.isEmpty ? 'Industrial equipment' : items.first.product.title;
-
-  /// Name of the last completed stage — drives the status banner.
+  /// Name of the last completed stage — drives the tracking status banner.
   String get currentStatus =>
       stages[(stageIndex - 1).clamp(0, stages.length - 1)].title;
 }
@@ -74,19 +120,32 @@ class OrderStore extends ChangeNotifier {
 
   static final OrderStore instance = OrderStore._();
 
+  static const String _photos = 'assets/images/machines';
+
   final List<Order> _orders = [];
 
   List<Order> get orders => List.unmodifiable(_orders);
 
   bool get isEmpty => _orders.isEmpty;
 
+  /// Open inquiries, newest first.
+  List<Order> get active =>
+      _orders.where((o) => !o.status.isClosed).toList();
+
+  /// Delivered and cancelled orders.
+  List<Order> get history =>
+      _orders.where((o) => o.status.isClosed).toList();
+
   /// Snapshots the cart into a new order. The caller clears the cart.
-  Order place(CartStore cart) {
+  Order place(CartStore cart, {String location = 'India'}) {
     final first = cart.items.isEmpty ? null : cart.items.first.product;
 
     final order = Order(
       reference: _reference(cart),
       placedOn: _today(),
+      title: first?.title ?? 'Industrial equipment',
+      status: OrderStatus.inquiryReceived,
+      location: location,
       items: List.of(cart.items),
       subtotal: cart.subtotal,
       freight: cart.freight,
@@ -94,6 +153,10 @@ class OrderStore extends ChangeNotifier {
       total: cart.total,
       equipmentType: first?.equipmentType ?? 'Industrial Equipment',
       logisticsMode: 'Expedited Freight',
+      thumbnail: first != null && first.images.isNotEmpty
+          ? first.images.first
+          : null,
+      icon: first?.icon ?? Icons.precision_manufacturing,
       stages: _stages(),
     );
 
@@ -102,8 +165,95 @@ class OrderStore extends ChangeNotifier {
     return order;
   }
 
+  void remove(Order order) {
+    _orders.remove(order);
+    notifyListeners();
+  }
+
   void clear() {
     _orders.clear();
+    notifyListeners();
+  }
+
+  /// Sample pipeline so the Orders screen has content before the API exists.
+  /// Called once from `main()`; drop that call to start with a clean slate.
+  void seedDemoOrders() {
+    if (_orders.isNotEmpty) return;
+
+    _orders.addAll([
+      Order(
+        reference: '#ORD-88219',
+        placedOn: 'Oct 24, 2026',
+        title: 'AX-900 Precision Lathe',
+        status: OrderStatus.underReview,
+        location: 'Pune Industrial Area',
+        items: const [],
+        subtotal: 5750000,
+        freight: 5370,
+        gst: 1035966.6,
+        total: 6791336.6,
+        equipmentType: 'CNC Precision Lathe',
+        logisticsMode: 'Expedited Freight',
+        thumbnail: '$_photos/mazak_quick_turn.jpg',
+        icon: Icons.rotate_right,
+        stageIndex: 1,
+        stages: _stages(),
+      ),
+      Order(
+        reference: '#ORD-90122',
+        placedOn: 'Oct 28, 2026',
+        title: 'Cobot Series Z-4',
+        status: OrderStatus.inquiryReceived,
+        location: 'Bengaluru Hub',
+        items: const [],
+        subtotal: 2890000,
+        freight: 5370,
+        gst: 521166.6,
+        total: 3416536.6,
+        equipmentType: 'Collaborative Robot Cell',
+        logisticsMode: 'Standard Freight',
+        thumbnail: '$_photos/fanuc_robodrill.jpg',
+        icon: Icons.smart_toy_outlined,
+        stages: _stages(),
+      ),
+      Order(
+        reference: '#ORD-71044',
+        placedOn: 'Sep 12, 2026',
+        title: 'Terraform Gen-SET 500',
+        status: OrderStatus.delivered,
+        location: 'Chennai Plant',
+        note: 'Quality Verified',
+        items: const [],
+        subtotal: 4200000,
+        freight: 5370,
+        gst: 756966.6,
+        total: 4962336.6,
+        equipmentType: 'Power Generation Unit',
+        logisticsMode: 'Expedited Freight',
+        thumbnail: '$_photos/okuma_genos.jpg',
+        icon: Icons.bolt_outlined,
+        stageIndex: 8,
+        stages: _stages(),
+      ),
+      Order(
+        reference: '#ORD-66310',
+        placedOn: 'Aug 05, 2026',
+        title: 'Laser-Cut V3 Pro',
+        status: OrderStatus.cancelled,
+        location: 'Rajkot Works',
+        note: 'Replaced by ORD-772',
+        items: const [],
+        subtotal: 3150000,
+        freight: 5370,
+        gst: 567966.6,
+        total: 3723336.6,
+        equipmentType: 'Laser Cutting System',
+        logisticsMode: 'Standard Freight',
+        thumbnail: '$_photos/dmg_mori_nhx.jpg',
+        icon: Icons.flare_outlined,
+        stages: _stages(),
+      ),
+    ]);
     notifyListeners();
   }
 
@@ -132,7 +282,8 @@ class OrderStore extends ChangeNotifier {
 
   String _today() {
     final now = DateTime.now();
-    return '${_months[now.month - 1]} ${now.day}, ${now.year}';
+    return '${_months[now.month - 1].substring(0, 3)} '
+        '${now.day.toString().padLeft(2, '0')}, ${now.year}';
   }
 
   String _stamp() {

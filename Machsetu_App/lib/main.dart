@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
+import 'features/orders/data/order.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,6 +11,9 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  // Sample pipeline for the Orders screen — delete this line to launch with
+  // an empty order history.
+  OrderStore.instance.seedDemoOrders();
   runApp(const MachSetuApp());
 }
 
