@@ -72,11 +72,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(child: BrandLogo(size: 76)),
-                    const SizedBox(height: 14),
-                    const Center(child: BrandWordmark(fontSize: 26)),
-                    const SizedBox(height: 10),
-                    const Center(child: BrandTagline()),
+                    const Center(child: BrandLogo(size: 120)),
+                    // No gap: both PNGs carry their own padding, so the mark
+                    // and the wordmark read as one lockup.
+                    const Center(child: BrandTextLogo(width: 250)),
                     const SizedBox(height: 28),
                     AuthCard(
                       child: Form(
@@ -120,6 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.brandBlue,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 6,
                                   ),
@@ -157,6 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   TextButton(
                                     style: TextButton.styleFrom(
+                                      foregroundColor: AppColors.brandBlue,
                                       minimumSize: Size.zero,
                                       tapTargetSize:
                                           MaterialTapTargetSize.shrinkWrap,

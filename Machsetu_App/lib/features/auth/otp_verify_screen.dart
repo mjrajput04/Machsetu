@@ -222,7 +222,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.08),
+                        color: AppColors.brandBlue.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
@@ -230,7 +230,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                           const Icon(
                             Icons.info_outline,
                             size: 16,
-                            color: AppColors.accent,
+                            color: AppColors.brandBlue,
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -239,7 +239,7 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.accentDark,
+                                color: AppColors.navy,
                               ),
                             ),
                           ),
@@ -270,6 +270,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                                   ),
                                 )
                               : TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.brandBlue,
+                                  ),
                                   onPressed: _resend,
                                   child: const Text('Resend Code'),
                                 ),
@@ -280,6 +283,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
               const SizedBox(height: 20),
               Center(
                 child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.brandBlue,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Change mobile number'),
                 ),

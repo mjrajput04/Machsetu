@@ -96,12 +96,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
           child: Column(
             children: [
-              const BrandLogo(size: 62),
-              const SizedBox(height: 14),
-              const BrandWordmark(fontSize: 22),
-              const SizedBox(height: 8),
-              const BrandTagline(fontSize: 9.5),
-              const SizedBox(height: 20),
+              const BrandLogo(size: 100),
+              // No gap: both PNGs carry their own padding, so the mark and the
+              // wordmark read as one lockup.
+              const BrandTextLogo(width: 215),
+              const SizedBox(height: 22),
               AuthCard(
                 child: Form(
                   key: _formKey,
@@ -252,6 +251,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.brandBlue,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Login'),
                     ),

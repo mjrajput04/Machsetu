@@ -46,6 +46,44 @@ class BrandLogo extends StatelessWidget {
   }
 }
 
+/// The MACHSETU wordmark artwork. The file already carries the strapline, so
+/// nothing else needs to sit under it. Falls back to the drawn wordmark and
+/// tagline if the asset is ever missing.
+class BrandTextLogo extends StatelessWidget {
+  const BrandTextLogo({
+    super.key,
+    this.width = 240,
+    this.assetPath = authAsset,
+  });
+
+  /// Full lockup with the chevron — used on the auth screens.
+  static const String authAsset = 'assets/images/machsetu_text.png';
+
+  /// Flatter crop that suits the short app-bar title slot.
+  static const String appBarAsset = 'assets/images/machsetu_text2.png';
+
+  final double width;
+  final String assetPath;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      assetPath,
+      width: width,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (context, error, stackTrace) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BrandWordmark(fontSize: width * 0.11),
+          const SizedBox(height: 8),
+          const BrandTagline(),
+        ],
+      ),
+    );
+  }
+}
+
 /// "MACHSETU" wordmark in the logo's two-tone treatment: brushed steel for
 /// MACH, royal blue for SETU.
 class BrandWordmark extends StatelessWidget {
@@ -87,20 +125,24 @@ class BrandWordmark extends StatelessWidget {
 
     final mach = Text('MACH', style: style.copyWith(color: machColor));
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (metallic)
-          ShaderMask(
-            blendMode: BlendMode.srcIn,
-            shaderCallback: (bounds) =>
-                AppColors.steelGradient.createShader(bounds),
-            child: mach,
-          )
-        else
-          mach,
-        Text('SETU', style: style.copyWith(color: setuColor)),
-      ],
+    return FittedBox(
+      // Shrinks rather than overflowing in tight app-bar title slots.
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (metallic)
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) =>
+                  AppColors.steelGradient.createShader(bounds),
+              child: mach,
+            )
+          else
+            mach,
+          Text('SETU', style: style.copyWith(color: setuColor)),
+        ],
+      ),
     );
   }
 }
@@ -111,6 +153,7 @@ class BrandTagline extends StatelessWidget {
     super.key,
     this.color = AppColors.steel,
     this.fontSize = 10.5,
+    this.letterSpacing = 1.6,
     this.showRules = true,
   });
 
@@ -118,6 +161,7 @@ class BrandTagline extends StatelessWidget {
 
   final Color color;
   final double fontSize;
+  final double letterSpacing;
   final bool showRules;
 
   @override
@@ -128,7 +172,7 @@ class BrandTagline extends StatelessWidget {
       style: TextStyle(
         fontSize: fontSize,
         fontWeight: FontWeight.w700,
-        letterSpacing: 1.6,
+        letterSpacing: letterSpacing,
         color: color,
       ),
     );

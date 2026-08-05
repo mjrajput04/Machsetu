@@ -20,18 +20,29 @@ class MachSetuAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showAvatar;
   final String initials;
 
+  /// Sized to the logo mark itself — no dead space above or below it.
+  static const double height = 54;
+
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(height);
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      titleSpacing: 16,
+      toolbarHeight: height,
+      titleSpacing: 12,
       title: const Row(
         children: [
-          BrandLogo(size: 30),
-          SizedBox(width: 10),
-          BrandWordmark(fontSize: 16, letterSpacing: 0.8),
+          BrandLogo(size: 52),
+          SizedBox(width: 1),
+          // Flexible lets the wordmark artwork shrink instead of overflowing
+          // when a back button squeezes the title slot.
+          Flexible(
+            child: BrandTextLogo(
+              width: 140,
+              assetPath: BrandTextLogo.appBarAsset,
+            ),
+          ),
         ],
       ),
       actions: [
