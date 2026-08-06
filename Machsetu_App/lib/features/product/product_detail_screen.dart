@@ -134,13 +134,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               onTap: (machine) => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => ProductDetailScreen(
-                    product: ProductCatalog.from(
-                      title: machine.title,
-                      brand: machine.subtitle,
-                      price: machine.price,
-                      image: machine.image,
-                      icon: machine.icon,
-                    ),
+                    product: ProductCatalog.fromMachine(machine),
                   ),
                 ),
               ),

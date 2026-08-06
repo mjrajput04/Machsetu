@@ -25,6 +25,7 @@ import 'package:machsetu_app/features/sell/submission_status_screen.dart';
 import 'package:machsetu_app/features/support/help_support_screen.dart';
 import 'package:machsetu_app/features/support/terms_screen.dart';
 import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
+import 'package:machsetu_app/features/home/data/machines.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/cart/data/cart_store.dart';
 import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
@@ -88,7 +89,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('₹58,50,000'), findsOneWidget);
+    expect(find.text('₹1,45,00,000'), findsOneWidget);
 
     await tester.tap(find.text('View All Manifests →'));
     await tester.pumpAndSettle();
@@ -235,13 +236,13 @@ void main() {
 
     // Tap the card's title, not its CTA button.
     await tester.dragUntilVisible(
-      find.text('Haas VF-2 Super Speed'),
+      find.text('DMG MORI DMU 50'),
       find.byType(Scrollable).first,
       const Offset(0, -120),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Haas VF-2 Super Speed'));
+    await tester.tap(find.text('DMG MORI DMU 50'));
     await tester.pumpAndSettle();
 
     expect(find.byType(ProductDetailScreen), findsOneWidget);
@@ -267,12 +268,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
-      find.text('Haas VF-2 Super Speed'),
+      find.text('DMG MORI DMU 50'),
       find.byType(Scrollable).first,
       const Offset(0, -120),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Haas VF-2 Super Speed'));
+    await tester.tap(find.text('DMG MORI DMU 50'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Cart'));
@@ -1043,6 +1044,117 @@ void main() {
     expect(SellOptions.requiredPhotos.length, 15);
     expect(SellOptions.documentTypes.length, 10);
     expect(SellOptions.inspectionPoints.length, 12);
+  });
+
+  test('the catalogue holds 15 machines, 3 in every category', () {
+    expect(MachineData.all.length, 15);
+
+    // "All" is a filter, not a category a machine belongs to.
+    final categories = MachineData.categories
+        .map((c) => c.$2)
+        .where((c) => c != MachineData.allCategory);
+    expect(categories.length, 5);
+
+    for (final category in categories) {
+      expect(
+        MachineData.forCategory(category).length,
+        3,
+        reason: '$category should hold exactly 3 machines',
+      );
+    }
+    expect(MachineData.forCategory(MachineData.allCategory).length, 15);
+
+    // Every entry carries real detail rather than placeholders.
+    for (final m in MachineData.all) {
+      expect(m.images, isNotEmpty, reason: '${m.title} needs a photo');
+      expect(m.machineDetails.length, greaterThanOrEqualTo(8));
+      expect(m.specifications.length, greaterThanOrEqualTo(8));
+      expect(m.overview.length, greaterThanOrEqualTo(2));
+      expect(m.features, isNotEmpty);
+      expect(m.price, startsWith('₹'));
+    }
+  });
+
+  testWidgets('home category chips filter the featured list', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MainShell(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The chip row sits below the fold, so it is not built until scrolled to.
+    await tester.scrollUntilVisible(
+      find.text('ACTIVE CATEGORIES'),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    // "All" leads the chip row, so the whole catalogue shows first.
+    expect(find.text('All'), findsOneWidget);
+
+    await tester.dragUntilVisible(
+      find.text('Lathes'),
+      find.byType(Scrollable).at(1),
+      const Offset(-140, 0),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lathes'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('3 machines available'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('3 machines available'), findsOneWidget);
+    expect(find.text('Mazak QUICK TURN 250MY'), findsOneWidget);
+    expect(find.text('DMG MORI DMU 50'), findsNothing);
+  });
+
+  testWidgets('the product page shows that machine\'s real specifications', (
+    tester,
+  ) async {
+    final machine = MachineData.all.firstWhere(
+      (m) => m.title == 'Sodick AG400L',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: ProductDetailScreen(product: ProductCatalog.fromMachine(machine)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sodick AG400L'), findsOneWidget);
+    expect(find.text('₹58,00,000'), findsOneWidget);
+    // Appears as the series chip and again in the quick-facts grid.
+    expect(find.text('EDM'), findsWidgets);
+
+    final page = find.byType(Scrollable).first;
+
+    // Hero cards pull real figures out of this machine's own spec table, so
+    // the controller shows up both there and in Machine Details.
+    await tester.scrollUntilVisible(
+      find.text('Sodick LN2W').first,
+      280,
+      scrollable: page,
+    );
+    expect(find.text('Sodick LN2W'), findsWidgets);
+
+    await tester.scrollUntilVisible(
+      find.text('Linear motor, all axes').first,
+      280,
+      scrollable: page,
+    );
+    expect(find.text('Linear motor, all axes'), findsOneWidget);
+    expect(find.text('±15° / 80 mm'), findsOneWidget);
   });
 
   test('rupee formatting uses Indian digit grouping', () {

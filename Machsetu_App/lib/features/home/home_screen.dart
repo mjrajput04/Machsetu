@@ -33,20 +33,16 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openProduct(Machine machine) {
     Navigator.of(context).pushNamed(
       AppRoutes.product,
-      arguments: ProductCatalog.from(
-        title: machine.title,
-        brand: machine.brand,
-        price: machine.price,
-        priceNote: machine.note.isEmpty ? 'SHIPPING & INSTALLATION' : machine.note,
-        equipmentType: machine.subtitle,
-        image: machine.image,
-        icon: machine.icon,
-      ),
+      arguments: ProductCatalog.fromMachine(machine),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final featured = MachineData.forCategory(
+      MachineData.categories[_category].$2,
+    );
+
     return Scaffold(
       appBar: const MachSetuAppBar(),
       body: RefreshIndicator(
@@ -126,13 +122,24 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 24),
             _SectionHeader(
-              title: 'Featured Machines',
+              title: _category == 0
+                  ? 'Featured Machines'
+                  : MachineData.categories[_category].$2,
               action: 'View All Manifests →',
               onAction: () =>
                   Navigator.of(context).pushNamed(AppRoutes.machines),
             ),
-            const SizedBox(height: 12),
-            for (final machine in MachineData.featured) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${featured.length} '
+              '${featured.length == 1 ? 'machine' : 'machines'} available',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 14),
+            for (final machine in featured) ...[
               FeaturedMachineCard(
                 machine: machine,
                 onTap: () => _openProduct(machine),

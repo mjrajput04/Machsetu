@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/currency.dart';
+import '../../home/data/machines.dart';
 
 class ProductSpec {
   const ProductSpec({
@@ -195,6 +196,99 @@ class ProductCatalog {
     'CE Compliant',
     'High Precision',
   ];
+
+  /// Builds a detail page straight from a catalogue entry, so every figure
+  /// on screen belongs to that machine rather than a shared demo block.
+  static Product fromMachine(Machine machine) {
+    String detail(List<String> labels, String fallback) {
+      for (final label in labels) {
+        for (final row in [...machine.machineDetails, ...machine.specifications]) {
+          if (row.$1.toLowerCase() == label.toLowerCase()) return row.$2;
+        }
+      }
+      return fallback;
+    }
+
+    return Product(
+      title: machine.title,
+      brand: machine.brand,
+      series: machine.category.toUpperCase(),
+      price: machine.price,
+      priceNote: machine.note.isEmpty ? 'SHIPPING & INSTALLATION' : machine.note,
+      leadTime: '4-6 weeks',
+      equipmentType: machine.subtitle,
+      icon: machine.icon,
+      images: machine.images,
+      heroSpecs: [
+        ProductSpec(
+          icon: Icons.speed_outlined,
+          label: 'SPINDLE SPEED',
+          value: detail(
+            ['Spindle Speed', 'Main Spindle Speed', 'Grinding Wheel Speed',
+             'Max Discharge Current', 'Turning Spindle Speed'],
+            '—',
+          ),
+        ),
+        ProductSpec(
+          icon: Icons.straighten,
+          label: 'WORK ENVELOPE',
+          value: detail(
+            ['Travels X/Y/Z', 'Max Turning Diameter', 'Max Cutting Diameter',
+             'Table Working Surface', 'Distance Between Centres',
+             'Grinding Diameter Range', 'Pallet Size'],
+            '—',
+          ),
+        ),
+        ProductSpec(
+          icon: Icons.build_outlined,
+          label: 'TOOLING',
+          value: detail(
+            ['Tool Magazine Capacity', 'Turret Stations', 'Grinding Wheel Size',
+             'Wire Diameter Range', 'Electrode Materials'],
+            '—',
+          ),
+        ),
+        ProductSpec(
+          icon: Icons.memory_outlined,
+          label: 'CONTROL',
+          value: detail(['Controller'], '—'),
+        ),
+      ],
+      detailPairs: [
+        ProductDetailPair('Year of Manufacture', machine.year),
+        ProductDetailPair('Condition', machine.condition, highlight: true),
+        ProductDetailPair('Working Hours', '${machine.hours} hrs'),
+        ProductDetailPair('Location', machine.location),
+        ProductDetailPair('Country of Origin', machine.origin),
+        ProductDetailPair('Category', machine.category),
+      ],
+      machineDetails: [
+        for (final row in machine.machineDetails)
+          ProductDetailPair(row.$1, row.$2),
+      ],
+      specifications: [
+        for (final row in machine.specifications)
+          ProductDetailPair(row.$1, row.$2),
+      ],
+      commercial: const [],
+      overview: machine.overview,
+      tags: machine.features,
+      documents: [
+        ProductDocument(
+          title: "Operator's Manual — ${machine.title}",
+          meta: 'PDF • 14.5 MB • ${machine.brand}',
+          color: const Color(0xFFDC2626),
+          icon: Icons.picture_as_pdf_outlined,
+        ),
+        const ProductDocument(
+          title: 'Technical Audit Report',
+          meta: 'PDF • 3.2 MB • MachSetu verified',
+          color: Color(0xFF2563EB),
+          icon: Icons.verified_outlined,
+        ),
+      ],
+    );
+  }
 
   static Product from({
     required String title,
