@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/*
+ * MachSetu admin palette — mirrors the Flutter app so the two products read
+ * as one system. Navy for structure, industrial orange for actions.
+ */
+@theme {
+  --color-navy-50: #eef2f8;
+  --color-navy-100: #d6e0ee;
+  --color-navy-600: #1a5490;
+  --color-navy-700: #123f6f;
+  --color-navy-800: #0e2e5c;
+  --color-navy-900: #0a2244;
+  --color-navy-950: #061627;
+
+  --color-accent-50: #fff4ed;
+  --color-accent-100: #ffe3d1;
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
+  --color-accent-700: #c2410c;
+
+  --color-ink: #0e2338;
+  --color-muted: #64748b;
+  --color-faint: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-canvas: #f4f6fa;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Slim scrollbars keep dense tables from feeling heavy. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: content-box;
+}
