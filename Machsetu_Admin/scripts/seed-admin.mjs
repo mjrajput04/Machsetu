@@ -12,20 +12,28 @@ import { MongoClient } from "mongodb";
 const uri = process.env.MONGODB_URI ?? "mongodb://127.0.0.1:27017";
 const dbName = process.env.MONGODB_DB ?? "machsetu";
 
+// Production passwords come from the environment so the real ones never sit
+// in the repository; the defaults are for local development only.
 const ACCOUNTS = [
   {
-    email: "admin@machsetu.in",
+    email: process.env.ADMIN_EMAIL ?? "admin@machsetu.in",
     name: "Admin Desk",
     role: "Super Admin",
-    password: "Machsetu@2026",
+    password: process.env.ADMIN_PASSWORD ?? "Machsetu@2026",
   },
   {
-    email: "ops@machsetu.in",
+    email: process.env.OPS_EMAIL ?? "ops@machsetu.in",
     name: "Operations",
     role: "Operations",
-    password: "Ops@2026",
+    password: process.env.OPS_PASSWORD ?? "Ops@2026",
   },
 ];
+
+for (const account of ACCOUNTS) {
+  if (account.password.length < 8) {
+    throw new Error(`Set a longer password for ${account.email}`);
+  }
+}
 
 const client = new MongoClient(uri);
 await client.connect();

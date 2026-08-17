@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# Git deploy hook for the MachSetu admin console.
+#
+# Lives at /var/repo/machsetu.git/hooks/post-receive on the VPS. Pushing the
+# main branch checks the work tree out, installs, builds and reloads PM2 —
+# and leaves the running build alone if any of that fails.
+set -euo pipefail
+
+TARGET="/var/www/machsetu"
+GIT_DIR="/var/repo/machsetu.git"
+BRANCH="main"
+APP="$TARGET/Machsetu_Admin"
+
+while read -r _old _new ref; do
+    if [[ "$ref" != "refs/heads/$BRANCH" ]]; then
+        echo "→ ignoring $ref (only $BRANCH deploys)"
+        continue
+    fi
+
+    echo "→ checking out $BRANCH into $TARGET"
+    git --work-tree="$TARGET" --git-dir="$GIT_DIR" checkout -f "$BRANCH"
+
+    cd "$APP"
+
+    echo "→ installing dependencies"
+    # npm ci needs the dev dependencies: TypeScript and Tailwind run at build.
+    npm ci --include=dev
+
+    echo "→ building"
+    npm run build
+
+    echo "→ reloading"
+    # reload, not restart: the old workers keep serving until the new ones are
+    # listening, so a deploy costs no downtime.
+    pm2 reload ecosystem.config.cjs --update-env || \
+        pm2 start ecosystem.config.cjs
+    pm2 save
+
+    echo "✓ deployed $(git --git-dir="$GIT_DIR" rev-parse --short "$BRANCH")"
+done
