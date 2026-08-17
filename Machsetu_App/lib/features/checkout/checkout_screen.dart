@@ -5,6 +5,7 @@ import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency.dart';
 import '../../core/utils/validators.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../cart/data/cart_store.dart';
 import '../orders/data/order.dart';
@@ -52,27 +53,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _placing = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
+
+    // Goes to the sourcing desk; falls back to a local order when offline.
+    final result = await OrderStore.instance.submit(
+      CartStore.instance,
+      location: [_city.text.trim(), _state.text.trim()]
+          .where((v) => v.isNotEmpty)
+          .join(', '),
+      customer: {
+        'name': _name.text.trim(),
+        'phone': _phone.text.trim(),
+        'company': _company.text.trim(),
+        'gstin': _gstin.text.trim().toUpperCase(),
+        'street': _street.text.trim(),
+        'city': _city.text.trim(),
+        'state': _state.text.trim(),
+        'zip': _zip.text.trim(),
+      },
+    );
     if (!mounted) return;
     setState(() => _placing = false);
-
-    // Snapshot the basket into an order, then hand off to the confirmation.
-    final order = OrderStore.instance.place(
-      CartStore.instance,
-      location: _city.text.trim(),
-    );
     CartStore.instance.clear();
 
-    await Navigator.of(context).pushReplacementNamed(
-      AppRoutes.orderSuccess,
-      arguments: order,
-    );
+    if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${result.error} — saved on this device, we will file it when '
+            'you are back online.',
+          ),
+        ),
+      );
+    }
+    final order = result.order;
+
+    await Navigator.of(
+      context,
+    ).pushReplacementNamed(AppRoutes.orderSuccess, arguments: order);
   }
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -110,135 +133,133 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                const _SecureBanner(),
-                const SizedBox(height: 18),
-                _Section(
-                  icon: Icons.person_outline,
-                  title: 'Customer Details',
-                  children: [
-                    _Field(
-                      label: 'Full Name',
-                      hint: 'e.g. Johnathan Miller',
-                      controller: _name,
-                      validator: Validators.name,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    _Field(
-                      label: 'Mobile Number',
-                      hint: '+91 98765-43210',
-                      controller: _phone,
-                      validator: Validators.phone,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(10),
-                      ],
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _Section(
-                  icon: Icons.business_outlined,
-                  title: 'Company Information',
-                  children: [
-                    _Field(
-                      label: 'Company Name',
-                      hint: 'Apex Manufacturing Ltd.',
-                      controller: _company,
-                      validator: (v) => (v ?? '').trim().isEmpty
-                          ? 'Company name is required'
-                          : null,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    _Field(
-                      label: 'GST / Tax Identification Number',
-                      hint: 'GSTIN-9922883311',
-                      controller: _gstin,
-                      validator: (v) => (v ?? '').trim().length < 8
-                          ? 'Enter a valid GSTIN'
-                          : null,
-                      textCapitalization: TextCapitalization.characters,
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _Section(
-                  icon: Icons.place_outlined,
-                  title: 'Delivery Address',
-                  children: [
-                    _Field(
-                      label: 'Street Address / Warehouse Unit',
-                      hint: 'Plot 44, Industrial Area Phase II',
-                      controller: _street,
-                      validator: (v) => (v ?? '').trim().isEmpty
-                          ? 'Delivery address is required'
-                          : null,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _Field(
-                            label: 'City',
-                            hint: 'Pune',
-                            controller: _city,
-                            validator: (v) => (v ?? '').trim().isEmpty
-                                ? 'Required'
-                                : null,
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _Field(
-                            label: 'State/Province',
-                            hint: 'Maharashtra',
-                            controller: _state,
-                            validator: (v) => (v ?? '').trim().isEmpty
-                                ? 'Required'
-                                : null,
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                      ],
-                    ),
-                    _Field(
-                      label: 'ZIP / Postal Code',
-                      hint: '48201',
-                      controller: _zip,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(6),
-                      ],
-                      validator: (v) => (v ?? '').trim().length < 5
-                          ? 'Enter a valid PIN code'
-                          : null,
-                      textInputAction: TextInputAction.done,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                _OrderSummaryCard(
-                  placing: _placing,
-                  onPlaceOrder: _placeOrder,
-                ),
-                const SizedBox(height: 18),
-                _HelpBox(onContact: () => _todo('Procurement specialist')),
-                const SizedBox(height: 22),
-                const Text(
-                  '© 2026 MachSetu Marketplace. All Rights Reserved.\n'
-                  'ISO 27001 Certified.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.6,
-                    color: AppColors.textMuted,
+                  const _SecureBanner(),
+                  const SizedBox(height: 18),
+                  _Section(
+                    icon: Icons.person_outline,
+                    title: 'Customer Details',
+                    children: [
+                      _Field(
+                        label: 'Full Name',
+                        hint: 'e.g. Johnathan Miller',
+                        controller: _name,
+                        validator: Validators.name,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      _Field(
+                        label: 'Mobile Number',
+                        hint: '+91 98765-43210',
+                        controller: _phone,
+                        validator: Validators.phone,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  _Section(
+                    icon: Icons.business_outlined,
+                    title: 'Company Information',
+                    children: [
+                      _Field(
+                        label: 'Company Name',
+                        hint: 'Apex Manufacturing Ltd.',
+                        controller: _company,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? 'Company name is required'
+                            : null,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      _Field(
+                        label: 'GST / Tax Identification Number',
+                        hint: 'GSTIN-9922883311',
+                        controller: _gstin,
+                        validator: (v) => (v ?? '').trim().length < 8
+                            ? 'Enter a valid GSTIN'
+                            : null,
+                        textCapitalization: TextCapitalization.characters,
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _Section(
+                    icon: Icons.place_outlined,
+                    title: 'Delivery Address',
+                    children: [
+                      _Field(
+                        label: 'Street Address / Warehouse Unit',
+                        hint: 'Plot 44, Industrial Area Phase II',
+                        controller: _street,
+                        validator: (v) => (v ?? '').trim().isEmpty
+                            ? 'Delivery address is required'
+                            : null,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _Field(
+                              label: 'City',
+                              hint: 'Pune',
+                              controller: _city,
+                              validator: (v) =>
+                                  (v ?? '').trim().isEmpty ? 'Required' : null,
+                              textInputAction: TextInputAction.next,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _Field(
+                              label: 'State/Province',
+                              hint: 'Maharashtra',
+                              controller: _state,
+                              validator: (v) =>
+                                  (v ?? '').trim().isEmpty ? 'Required' : null,
+                              textInputAction: TextInputAction.next,
+                            ),
+                          ),
+                        ],
+                      ),
+                      _Field(
+                        label: 'ZIP / Postal Code',
+                        hint: '48201',
+                        controller: _zip,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        validator: (v) => (v ?? '').trim().length < 5
+                            ? 'Enter a valid PIN code'
+                            : null,
+                        textInputAction: TextInputAction.done,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _OrderSummaryCard(
+                    placing: _placing,
+                    onPlaceOrder: _placeOrder,
+                  ),
+                  const SizedBox(height: 18),
+                  _HelpBox(onContact: () => _todo('Procurement specialist')),
+                  const SizedBox(height: 22),
+                  const Text(
+                    '© 2026 MachSetu Marketplace. All Rights Reserved.\n'
+                    'ISO 27001 Certified.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.6,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -460,17 +481,14 @@ class _OrderSummaryCard extends StatelessWidget {
                 ],
                 const Divider(),
                 const SizedBox(height: 10),
-                _Row(
-                  label: 'Subtotal',
-                  value: Rupees.format(cart.subtotal),
-                ),
+                _Row(label: 'Subtotal', value: Rupees.format(cart.subtotal)),
                 _Row(
                   label: 'Estimated Freight',
                   value: Rupees.format(cart.freight),
                   accent: true,
                 ),
                 _Row(
-                  label: 'GST (18%)',
+                  label: 'GST (${cart.gstLabel})',
                   value: Rupees.format(cart.gst),
                 ),
                 const SizedBox(height: 8),
@@ -566,7 +584,7 @@ class _LineItem extends StatelessWidget {
             width: 56,
             child: image == null
                 ? _fallback(product.icon)
-                : Image.asset(
+                : AppImage(
                     image,
                     fit: BoxFit.cover,
                     errorBuilder: (_, _, _) => _fallback(product.icon),

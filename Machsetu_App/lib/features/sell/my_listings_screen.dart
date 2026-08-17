@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/sell_store.dart';
 
@@ -30,6 +31,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   void initState() {
     super.initState();
     _search.addListener(() => setState(() {}));
+    // Pulls whatever this seller has submitted to the sourcing desk.
+    SellStore.instance.loadMine();
   }
 
   @override
@@ -46,8 +49,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         heroTag: 'my-listings-sell-fab',
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
-        onPressed: () =>
-            Navigator.of(context).pushNamed(AppRoutes.sellMachine),
+        onPressed: () => Navigator.of(context).pushNamed(AppRoutes.sellMachine),
         child: const Icon(Icons.add),
       ),
       body: ListenableBuilder(
@@ -114,9 +116,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                           color: selected ? AppColors.navy : AppColors.surface,
                           borderRadius: BorderRadius.circular(19),
                           border: Border.all(
-                            color: selected
-                                ? AppColors.navy
-                                : AppColors.border,
+                            color: selected ? AppColors.navy : AppColors.border,
                           ),
                         ),
                         child: Text(
@@ -141,10 +141,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 for (final listing in listings) ...[
                   _ListingCard(
                     listing: listing,
-                    onOpen: () => Navigator.of(context).pushNamed(
-                      AppRoutes.listingDetails,
-                      arguments: listing,
-                    ),
+                    onOpen: () => Navigator.of(
+                      context,
+                    ).pushNamed(AppRoutes.listingDetails, arguments: listing),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -211,12 +210,11 @@ class _ListingCard extends StatelessWidget {
                     : ColorFiltered(
                         // Closed and pending listings read as inactive.
                         colorFilter: _saturation(sold || pending ? 0.25 : 1),
-                        child: Image.asset(
+                        child: AppImage(
                           image,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const ColoredBox(
-                            color: AppColors.steelBright,
-                          ),
+                          errorBuilder: (_, _, _) =>
+                              const ColoredBox(color: AppColors.steelBright),
                         ),
                       ),
               ),

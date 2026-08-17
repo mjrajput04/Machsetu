@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CATEGORIES, PRODUCTS, type ProductStatus } from "@/lib/data";
+import { api, useApi } from "@/lib/api";
+import type { Product, ProductStatus } from "@/lib/types";
 import { rupees, shortDate } from "@/lib/format";
 import {
   Badge,
@@ -31,10 +33,20 @@ export default function ProductsPage() {
   const [status, setStatus] = useState<ProductStatus | "All">("All");
   const [category, setCategory] = useState<string>("All");
   const [selected, setSelected] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const catalogue = useApi<{ products: Product[] }>("/api/admin/products");
+  // The filter offers whatever Settings currently publishes.
+  const config = useApi<{ categories: string[] }>("/api/settings");
+  const CATEGORIES = useMemo(() => config.data?.categories ?? [], [config.data]);
+  const all = useMemo(
+    () => catalogue.data?.products ?? [],
+    [catalogue.data],
+  );
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return PRODUCTS.filter((p) => {
+    return all.filter((p) => {
       if (status !== "All" && p.status !== status) return false;
       if (category !== "All" && p.category !== category) return false;
       if (!q) return true;
@@ -43,7 +55,7 @@ export default function ProductsPage() {
         .toLowerCase()
         .includes(q);
     });
-  }, [query, status, category]);
+  }, [all, query, status, category]);
 
   const allShownSelected =
     rows.length > 0 && rows.every((r) => selected.includes(r.id));
@@ -56,6 +68,36 @@ export default function ProductsPage() {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
+  }
+
+  /** Applies one change to every ticked row, then refreshes the table. */
+  async function bulk(patch: Record<string, unknown>) {
+    setBusy(true);
+    try {
+      await Promise.all(
+        selected.map((id) => api.put(`/api/admin/products/${id}`, patch)),
+      );
+      setSelected([]);
+      catalogue.reload();
+    } catch (error) {
+      window.alert((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(ids: string[], label: string) {
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await Promise.all(ids.map((id) => api.del(`/api/admin/products/${id}`)));
+      setSelected((prev) => prev.filter((id) => !ids.includes(id)));
+      catalogue.reload();
+    } catch (error) {
+      window.alert((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -122,20 +164,45 @@ export default function ProductsPage() {
               {selected.length} selected
             </p>
             <div className="ml-auto flex gap-2">
-              <Button size="sm" variant="secondary">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => bulk({ status: "Live" })}
+              >
                 Publish
               </Button>
-              <Button size="sm" variant="secondary">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => bulk({ status: "Pending Review" })}
+              >
                 Unpublish
               </Button>
-              <Button size="sm" variant="danger">
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={busy}
+                onClick={() => remove(selected, `${selected.length} machines`)}
+              >
                 Delete
               </Button>
             </div>
           </div>
         )}
 
-        {rows.length === 0 ? (
+        {catalogue.loading ? (
+          <EmptyState
+            title="Loading the catalogue…"
+            message="Fetching every machine from the database."
+          />
+        ) : catalogue.error ? (
+          <EmptyState
+            title="Could not load products"
+            message={catalogue.error}
+          />
+        ) : rows.length === 0 ? (
           <EmptyState
             title="No machines match"
             message="Try a different search term, category or status filter."
@@ -176,19 +243,30 @@ export default function ProductsPage() {
                     />
                   </Td>
                   <Td>
-                    <div className="flex items-center gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-navy-50 text-[10px] font-bold text-navy-700">
-                        {p.year}
-                      </span>
+                    <Link
+                      href={`/products/${p.id}`}
+                      className="group flex items-center gap-3"
+                    >
+                      <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-lg bg-navy-50">
+                        {p.images[0] && (
+                          <Image
+                            src={p.images[0]}
+                            alt={p.title}
+                            fill
+                            sizes="56px"
+                            className="object-cover"
+                          />
+                        )}
+                      </div>
                       <div className="min-w-0">
-                        <p className="truncate font-bold text-navy-800">
+                        <p className="truncate font-bold text-navy-800 group-hover:text-accent-600">
                           {p.title}
                         </p>
                         <p className="truncate text-xs text-muted">
-                          {p.id} · {p.type}
+                          {p.id} · {p.year} · {p.type}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   </Td>
                   <Td className="whitespace-nowrap">
                     <Badge tone="navy">{p.category}</Badge>
@@ -208,7 +286,24 @@ export default function ProductsPage() {
                   </Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-1">
-                      <button
+                      <Link
+                        href={`/products/${p.id}`}
+                        title="View"
+                        className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-navy-50 hover:text-navy-700"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.8}
+                          className="h-4 w-4"
+                        >
+                          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </Link>
+                      <Link
+                        href={`/products/${p.id}/edit`}
                         title="Edit"
                         className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-navy-50 hover:text-navy-700"
                       >
@@ -221,10 +316,12 @@ export default function ProductsPage() {
                         >
                           <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
                         </svg>
-                      </button>
+                      </Link>
                       <button
                         title="Delete"
-                        className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-rose-50 hover:text-rose-600"
+                        disabled={busy}
+                        onClick={() => remove([p.id], p.title)}
+                        className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                       >
                         <svg
                           viewBox="0 0 24 24"
@@ -247,7 +344,7 @@ export default function ProductsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-muted">
           <p>
             Showing <strong className="text-navy-800">{rows.length}</strong> of{" "}
-            {PRODUCTS.length} machines
+            {all.length} machines
           </p>
           <div className="flex gap-1">
             <Button size="sm" variant="secondary" disabled>

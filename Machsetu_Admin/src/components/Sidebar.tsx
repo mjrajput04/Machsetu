@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAdminSession } from "./AdminSession";
 import { cx } from "./ui";
 
 const NAV = [
@@ -31,6 +32,7 @@ const NAV = [
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { admin } = useAdminSession();
 
   return (
     <div className="flex h-full flex-col bg-navy-900 text-white">
@@ -102,9 +104,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             AD
           </span>
           <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-sm font-semibold">Admin Desk</p>
+            <p className="truncate text-sm font-semibold">
+              {admin?.name ?? "Admin"}
+            </p>
             <p className="truncate text-[11px] text-white/50">
-              ops@machsetu.in
+              {admin?.email ?? ""}
             </p>
           </div>
         </div>

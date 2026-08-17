@@ -67,10 +67,9 @@ class OrderSuccessScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: () => Navigator.of(context).pushNamed(
-                  AppRoutes.orderTracking,
-                  arguments: order,
-                ),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pushNamed(AppRoutes.orderTracking, arguments: order),
                 icon: const Icon(Icons.track_changes, size: 20),
                 label: const Text(
                   'Track Order',
@@ -123,10 +122,7 @@ class _SuccessBadge extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          CustomPaint(
-            size: const Size(168, 168),
-            painter: _TickPainter(),
-          ),
+          CustomPaint(size: const Size(168, 168), painter: _TickPainter()),
           Container(
             height: 144,
             width: 144,
@@ -240,7 +236,8 @@ class _ThankYouCard extends StatelessWidget {
           ),
           children: const [
             TextSpan(
-              text: 'Thank you for choosing MachSetu. Your request has been '
+              text:
+                  'Thank you for choosing MachSetu. Your request has been '
                   'queued for fulfillment. A specialized industrial broker '
                   'will review your technical requirements and contact you '
                   'within ',

@@ -1,15 +1,41 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
+import 'data/notification_store.dart';
 import 'data/notifications.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final _store = NotificationStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_onStore);
+    _store.load(force: true);
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_onStore);
+    super.dispose();
+  }
+
+  void _onStore() {
+    if (mounted) setState(() {});
+  }
+
   void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -24,7 +50,7 @@ class NotificationsScreen extends StatelessWidget {
         title: const Text('Notifications'),
         actions: [
           TextButton(
-            onPressed: () => _todo(context, 'Mark all as read'),
+            onPressed: _store.markAllRead,
             child: const Text('Mark all read'),
           ),
           const SizedBox(width: 6),
@@ -53,7 +79,7 @@ class NotificationsScreen extends StatelessWidget {
           const SizedBox(height: 24),
           const _GroupLabel('TODAY'),
           const SizedBox(height: 12),
-          for (final item in NotificationData.today) ...[
+          for (final item in _store.today) ...[
             _NotificationCard(
               item: item,
               onAction: (label) => _todo(context, label),
@@ -63,7 +89,7 @@ class NotificationsScreen extends StatelessWidget {
           const SizedBox(height: 14),
           const _GroupLabel('EARLIER'),
           const SizedBox(height: 12),
-          for (final item in NotificationData.earlier) ...[
+          for (final item in _store.earlier) ...[
             _NotificationCard(
               item: item,
               onAction: (label) => _todo(context, label),
@@ -137,7 +163,7 @@ class _NotificationCard extends StatelessWidget {
                         child: SizedBox(
                           height: 118,
                           width: double.infinity,
-                          child: Image.asset(
+                          child: AppImage(
                             image,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) => _iconTile(),

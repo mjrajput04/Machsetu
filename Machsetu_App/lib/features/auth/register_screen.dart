@@ -47,9 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept the terms to continue'),
-        ),
+        const SnackBar(content: Text('Please accept the terms to continue')),
       );
       return;
     }
@@ -169,8 +167,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         icon: Icons.lock_reset_outlined,
                         obscure: true,
                         textInputAction: TextInputAction.done,
-                        validator:
-                            Validators.confirmPassword(() => _password.text),
+                        validator: Validators.confirmPassword(
+                          () => _password.text,
+                        ),
                         onSubmitted: (_) => _submit(),
                       ),
                       const SizedBox(height: 14),

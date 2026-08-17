@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/catalogue_service.dart';
+import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import '../product/data/product.dart';
 import 'data/machines.dart';
@@ -17,17 +22,34 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _category = 0;
   final _search = TextEditingController();
+  final _catalogue = CatalogueService.instance;
+  final _settings = SettingsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _catalogue.addListener(_onCatalogue);
+    _settings.addListener(_onCatalogue);
+    _catalogue.load();
+    _settings.load();
+  }
 
   @override
   void dispose() {
+    _catalogue.removeListener(_onCatalogue);
+    _settings.removeListener(_onCatalogue);
     _search.dispose();
     super.dispose();
   }
 
+  void _onCatalogue() {
+    if (mounted) setState(() {});
+  }
+
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   void _openProduct(Machine machine) {
@@ -39,15 +61,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final featured = MachineData.forCategory(
-      MachineData.categories[_category].$2,
-    );
+    // Chips come from the admin panel's Settings page; "All" is always first.
+    final chips = _settings.categoryChips;
+    final selected = _category.clamp(0, chips.length - 1);
+    final featured = _catalogue.forCategory(chips[selected].$2);
 
     return Scaffold(
       appBar: const MachSetuAppBar(),
       body: RefreshIndicator(
         color: AppColors.navy,
-        onRefresh: () => Future<void>.delayed(const Duration(milliseconds: 900)),
+        onRefresh: () async {
+          await Future.wait([
+            _catalogue.load(force: true),
+            _settings.load(force: true),
+          ]);
+        },
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
@@ -72,7 +100,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             _SearchBar(controller: _search, onFilter: () => _todo('Filters')),
             const SizedBox(height: 18),
-            _PromoBanner(onExplore: () => _todo('Manifest')),
+            _PromoCarousel(
+              slides: _settings.heroSlides,
+              onExplore: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.machines),
+            ),
             const SizedBox(height: 22),
             const _SectionLabel('ACTIVE CATEGORIES'),
             const SizedBox(height: 12),
@@ -80,21 +112,21 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 42,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: MachineData.categories.length,
+                itemCount: chips.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
-                  final (icon, label) = MachineData.categories[index];
-                  final selected = index == _category;
+                  final (icon, label) = chips[index];
+                  final isSelected = index == selected;
                   return GestureDetector(
                     onTap: () => setState(() => _category = index),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: selected ? AppColors.navy : AppColors.surface,
+                        color: isSelected ? AppColors.navy : AppColors.surface,
                         borderRadius: BorderRadius.circular(21),
                         border: Border.all(
-                          color: selected ? AppColors.navy : AppColors.border,
+                          color: isSelected ? AppColors.navy : AppColors.border,
                         ),
                       ),
                       child: Row(
@@ -102,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(
                             icon,
                             size: 16,
-                            color: selected ? Colors.white : AppColors.navy,
+                            color: isSelected ? Colors.white : AppColors.navy,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -110,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600,
-                              color: selected ? Colors.white : AppColors.navy,
+                              color: isSelected ? Colors.white : AppColors.navy,
                             ),
                           ),
                         ],
@@ -122,9 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 24),
             _SectionHeader(
-              title: _category == 0
-                  ? 'Featured Machines'
-                  : MachineData.categories[_category].$2,
+              title: selected == 0 ? 'Featured Machines' : chips[selected].$2,
               action: 'View All Manifests →',
               onAction: () =>
                   Navigator.of(context).pushNamed(AppRoutes.machines),
@@ -183,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: MachineData.recent.length,
+              itemCount: _catalogue.recent.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 14,
@@ -191,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 childAspectRatio: 0.86,
               ),
               itemBuilder: (context, index) {
-                final machine = MachineData.recent[index];
+                final machine = _catalogue.recent[index];
                 return CompactMachineCard(
                   machine: machine,
                   onTap: () => _openProduct(machine),
@@ -245,9 +275,137 @@ class _SearchBar extends StatelessWidget {
   }
 }
 
-class _PromoBanner extends StatelessWidget {
-  const _PromoBanner({required this.onExplore});
+/// Home banner that cycles through the slides set in the admin panel.
+///
+/// Auto-play pauses while the buyer is swiping and picks up again a few
+/// seconds after they let go, matching the product page's hero.
+class _PromoCarousel extends StatefulWidget {
+  const _PromoCarousel({required this.slides, required this.onExplore});
 
+  final List<HeroContent> slides;
+  final VoidCallback onExplore;
+
+  static const Duration interval = Duration(seconds: 5);
+
+  @override
+  State<_PromoCarousel> createState() => _PromoCarouselState();
+}
+
+class _PromoCarouselState extends State<_PromoCarousel> {
+  // Every slide is the same size, so the height has to hold the longest copy
+  // the desk might type in Settings. The text below is clamped to match.
+  static const double _height = 280;
+
+  final _controller = PageController();
+  Timer? _timer;
+  Timer? _resume;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startAutoPlay();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PromoCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The desk may have added or removed a slide since the last load.
+    if (oldWidget.slides.length != widget.slides.length) {
+      if (_index >= widget.slides.length && _controller.hasClients) {
+        _controller.jumpToPage(0);
+      }
+      _startAutoPlay();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _resume?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _startAutoPlay() {
+    _timer?.cancel();
+    if (widget.slides.length < 2) return;
+
+    _timer = Timer.periodic(_PromoCarousel.interval, (_) {
+      if (!mounted || !_controller.hasClients) return;
+      _controller.animateToPage(
+        (_index + 1) % widget.slides.length,
+        duration: const Duration(milliseconds: 550),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  void _pauseAutoPlay() {
+    _timer?.cancel();
+    _resume?.cancel();
+    _resume = Timer(const Duration(seconds: 8), _startAutoPlay);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slides = widget.slides.isEmpty
+        ? const [HeroContent.fallback]
+        : widget.slides;
+
+    return SizedBox(
+      height: _height,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is UserScrollNotification) _pauseAutoPlay();
+                return false;
+              },
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: slides.length,
+                onPageChanged: (i) => setState(() => _index = i),
+                itemBuilder: (context, index) => _PromoBanner(
+                  hero: slides[index],
+                  onExplore: widget.onExplore,
+                ),
+              ),
+            ),
+          ),
+          if (slides.length > 1)
+            Positioned(
+              right: 16,
+              bottom: 14,
+              child: Row(
+                children: [
+                  for (var i = 0; i < slides.length; i++)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      margin: const EdgeInsets.only(left: 5),
+                      height: 6,
+                      width: i == _index ? 18 : 6,
+                      decoration: BoxDecoration(
+                        color: i == _index
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PromoBanner extends StatelessWidget {
+  const _PromoBanner({required this.hero, required this.onExplore});
+
+  final HeroContent hero;
   final VoidCallback onExplore;
 
   @override
@@ -264,8 +422,8 @@ class _PromoBanner extends StatelessWidget {
           // Workshop photo sits behind the copy; the scrim keeps the text
           // legible no matter how busy the shot is.
           Positioned.fill(
-            child: Image.asset(
-              MachineData.bannerPhoto,
+            child: AppImage(
+              hero.image,
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
@@ -289,6 +447,7 @@ class _PromoBanner extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -299,9 +458,9 @@ class _PromoBanner extends StatelessWidget {
                     color: AppColors.accent,
                     borderRadius: BorderRadius.circular(5),
                   ),
-                  child: const Text(
-                    'VERIFIED LISTINGS',
-                    style: TextStyle(
+                  child: Text(
+                    hero.badge,
+                    style: const TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8,
@@ -321,8 +480,9 @@ class _PromoBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Access 450+ certified CNC and VMC centers with full '
-                  'maintenance history and performance logs.',
+                  hero.subtitle,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.5,
@@ -340,7 +500,11 @@ class _PromoBanner extends StatelessWidget {
                     ),
                   ),
                   onPressed: onExplore,
-                  child: const Text('Explore Manifest'),
+                  child: Text(
+                    hero.ctaLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

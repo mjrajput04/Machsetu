@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { INQUIRIES, type InquiryStatus } from "@/lib/data";
+import Image from "next/image";
+import { useApi, usePolling } from "@/lib/api";
+import type { Inquiry, InquiryStatus } from "@/lib/types";
 import { relativeDate, rupees } from "@/lib/format";
 import {
   Avatar,
@@ -21,19 +23,25 @@ const STATUSES: Array<InquiryStatus | "All"> = [
   "All",
   "New",
   "Broker Assigned",
-  "Quoted",
+  "Awaiting Quote",
+  "Quote Received",
   "Negotiating",
   "Closed",
   "Lost",
+  "Expired",
 ];
 
 export default function InquiriesPage() {
   const [status, setStatus] = useState<InquiryStatus | "All">("All");
   const [query, setQuery] = useState("");
 
+  const feed = useApi<{ inquiries: Inquiry[] }>("/api/admin/inquiries");
+  usePolling(feed.reload);
+  const all = useMemo(() => feed.data?.inquiries ?? [], [feed.data]);
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return INQUIRIES.filter((i) => {
+    return all.filter((i) => {
       if (status !== "All" && i.status !== status) return false;
       if (!q) return true;
       return [i.id, i.machine, i.buyer, i.company, i.city]
@@ -41,13 +49,15 @@ export default function InquiriesPage() {
         .toLowerCase()
         .includes(q);
     });
-  }, [status, query]);
+  }, [all, status, query]);
 
-  const pipeline = INQUIRIES.filter(
-    (i) => i.status !== "Closed" && i.status !== "Lost",
-  ).reduce((sum, i) => sum + (i.quoted ?? i.budget), 0);
-  const won = INQUIRIES.filter((i) => i.status === "Closed").length;
-  const lost = INQUIRIES.filter((i) => i.status === "Lost").length;
+  const pipeline = all
+    .filter((i) => i.status !== "Closed" && i.status !== "Lost")
+    .reduce((sum, i) => sum + (i.quoted ?? i.budget), 0);
+  const won = all.filter((i) => i.status === "Closed").length;
+  const lost = all.filter(
+    (i) => i.status === "Lost" || i.status === "Expired",
+  ).length;
   const winRate = won + lost === 0 ? 0 : Math.round((won / (won + lost)) * 100);
 
   return (
@@ -78,7 +88,7 @@ export default function InquiriesPage() {
             Awaiting action
           </p>
           <p className="mt-2 text-3xl font-extrabold text-accent-600">
-            {INQUIRIES.filter((i) => i.status === "New").length}
+            {all.filter((i) => i.status === "New").length}
           </p>
           <p className="mt-1 text-xs text-faint">No broker assigned yet</p>
         </Card>
@@ -87,7 +97,7 @@ export default function InquiriesPage() {
             Quoted
           </p>
           <p className="mt-2 text-3xl font-extrabold text-navy-800">
-            {INQUIRIES.filter((i) => i.quoted !== null).length}
+            {all.filter((i) => i.quoted !== null).length}
           </p>
           <p className="mt-1 text-xs text-faint">Price sent to buyer</p>
         </Card>
@@ -133,7 +143,14 @@ export default function InquiriesPage() {
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {feed.loading ? (
+          <EmptyState
+            title="Loading inquiries…"
+            message="Fetching buyer RFQs from the database."
+          />
+        ) : feed.error ? (
+          <EmptyState title="Could not load inquiries" message={feed.error} />
+        ) : rows.length === 0 ? (
           <EmptyState
             title="No inquiries match"
             message="Try a different status filter or search term."
@@ -159,7 +176,37 @@ export default function InquiriesPage() {
                   <Td className="font-bold whitespace-nowrap text-navy-800">
                     {i.id}
                   </Td>
-                  <Td className="whitespace-nowrap">{i.machine}</Td>
+                  <Td>
+                    <div className="flex items-center gap-3">
+                      <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-md bg-navy-50">
+                        {i.image && (
+                          <Image
+                            src={i.image}
+                            alt={i.machine}
+                            fill
+                            sizes="56px"
+                            className="object-cover"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-navy-800">
+                          {i.machine}
+                        </p>
+                        <p className="truncate text-xs text-muted">{i.brand}</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {i.specs.slice(0, 3).map((sp) => (
+                            <span
+                              key={sp}
+                              className="rounded bg-canvas px-1.5 py-0.5 text-[10px] font-semibold text-muted"
+                            >
+                              {sp}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </Td>
                   <Td>
                     <div className="flex items-center gap-2.5">
                       <Avatar name={i.buyer} />
@@ -177,6 +224,11 @@ export default function InquiriesPage() {
                     <Badge tone={statusTone(i.status)} dot>
                       {i.status}
                     </Badge>
+                    {i.responseNote && (
+                      <p className="mt-1.5 max-w-[220px] text-xs leading-snug text-muted">
+                        {i.responseNote}
+                      </p>
+                    )}
                   </Td>
                   <Td className="whitespace-nowrap text-muted">
                     {i.broker ?? (
@@ -205,7 +257,7 @@ export default function InquiriesPage() {
 
         <div className="px-4 py-3 text-sm text-muted">
           Showing <strong className="text-navy-800">{rows.length}</strong> of{" "}
-          {INQUIRIES.length} inquiries
+          {all.length} inquiries
         </div>
       </Card>
     </>

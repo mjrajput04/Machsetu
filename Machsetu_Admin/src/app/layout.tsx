@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AdminSessionProvider } from "@/components/AdminSession";
 import { Shell } from "@/components/Shell";
 
 const inter = Inter({
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} antialiased`}>
-        <Shell>{children}</Shell>
+        <AdminSessionProvider>
+          <Shell>{children}</Shell>
+        </AdminSessionProvider>
       </body>
     </html>
   );

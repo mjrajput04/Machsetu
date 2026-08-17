@@ -50,12 +50,12 @@ void main() {
     await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
     await tester.pump();
 
-    expect(find.text('Email is required'), findsOneWidget);
+    expect(find.text('Enter your email or mobile number'), findsOneWidget);
     expect(find.text('Password is required'), findsOneWidget);
     expect(find.byType(MainShell), findsNothing);
   });
 
-  testWidgets('valid credentials land on the marketplace shell', (tester) async {
+  testWidgets('login accepts an email or a mobile number', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         onGenerateRoute: AppRoutes.onGenerateRoute,
@@ -63,25 +63,42 @@ void main() {
       ),
     );
 
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'you@company.com'),
-      'buyer@machsetu.in',
+    final identifier = find.widgetWithText(
+      TextFormField,
+      'you@company.com or 98765 43210',
     );
+
+    // A bare mobile number clears validation, same as an email would.
+    await tester.enterText(identifier, '9876543210');
     await tester.enterText(
       find.widgetWithText(TextFormField, '••••••••'),
       'secret123',
     );
     await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
     await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
 
-    expect(find.byType(MainShell), findsOneWidget);
-    expect(await SessionStore.instance.isLoggedIn(), isTrue);
+    expect(
+      find.text('Enter a valid email address or 10-digit mobile number'),
+      findsNothing,
+    );
+
+    // Nonsense in the same field is still rejected.
+    await tester.enterText(identifier, 'not-a-contact');
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
+    await tester.pump();
+
+    expect(
+      find.text('Enter a valid email address or 10-digit mobile number'),
+      findsOneWidget,
+    );
+    expect(find.byType(MainShell), findsNothing);
   });
 
   testWidgets('a stored session skips login on relaunch', (tester) async {
-    await SessionStore.instance.save(email: 'buyer@machsetu.in');
+    await SessionStore.instance.saveSession(
+      token: 'test-token',
+      user: const {'name': 'Rajesh Kumar', 'email': 'buyer@machsetu.in'},
+    );
 
     await tester.pumpWidget(const MachSetuApp());
     await tester.pump(const Duration(seconds: 4));
@@ -92,7 +109,10 @@ void main() {
   });
 
   testWidgets('logging out clears the stored session', (tester) async {
-    await SessionStore.instance.save(email: 'buyer@machsetu.in');
+    await SessionStore.instance.saveSession(
+      token: 'test-token',
+      user: const {'name': 'Rajesh Kumar', 'email': 'buyer@machsetu.in'},
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -119,7 +139,8 @@ void main() {
 
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
-    expect(await SessionStore.instance.isLoggedIn(), isTrue);
+    // Cancelling leaves the token in place.
+    expect(await SessionStore.instance.token(), 'test-token');
 
     await tester.tap(find.text('Logout'));
     await tester.pumpAndSettle();

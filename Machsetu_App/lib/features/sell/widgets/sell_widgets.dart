@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_image.dart';
 import '../data/sell_store.dart';
 
 /// Numbered step indicator with a connecting rail.
@@ -425,9 +426,7 @@ class _TickRow extends StatelessWidget {
                   fontSize: 12.5,
                   height: 1.25,
                   fontWeight: checked ? FontWeight.w700 : FontWeight.w500,
-                  color: checked
-                      ? AppColors.accentDark
-                      : AppColors.textPrimary,
+                  color: checked ? AppColors.accentDark : AppColors.textPrimary,
                 ),
               ),
             ),
@@ -660,22 +659,18 @@ class PhotoTile extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
+          AppImage(
             path,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => const ColoredBox(
-              color: AppColors.steelBright,
-            ),
+            errorBuilder: (_, _, _) =>
+                const ColoredBox(color: AppColors.steelBright),
           ),
           if (isMain)
             Positioned(
               left: 8,
               bottom: 8,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.navy.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(4),
@@ -731,12 +726,11 @@ class ReviewThumb extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
+            AppImage(
               path,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const ColoredBox(
-                color: AppColors.steelBright,
-              ),
+              errorBuilder: (_, _, _) =>
+                  const ColoredBox(color: AppColors.steelBright),
             ),
             if (isMain)
               Positioned(
@@ -1033,10 +1027,7 @@ class DashedBorderPainter extends CustomPainter {
 
     final outline = Path()
       ..addRRect(
-        RRect.fromRectAndRadius(
-          Offset.zero & size,
-          const Radius.circular(12),
-        ),
+        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(12)),
       );
 
     for (final metric in outline.computeMetrics()) {

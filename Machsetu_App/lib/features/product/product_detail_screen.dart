@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/services/shell_tabs.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import '../cart/data/cart_store.dart';
 import '../home/data/machines.dart';
+import '../profile/new_inquiry_screen.dart';
 import 'data/product.dart';
 import 'widgets/product_hero.dart';
 
@@ -59,9 +62,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   }
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   /// Unwinds every pushed product page and lands on the shell's Cart tab.
@@ -105,9 +108,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
             ),
           ),
           SliverToBoxAdapter(child: _Header(product: product)),
-          SliverToBoxAdapter(
-            child: _SectionTabs(controller: _tabs),
-          ),
+          SliverToBoxAdapter(child: _SectionTabs(controller: _tabs)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
@@ -145,7 +146,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       ),
       bottomNavigationBar: _ActionBar(
         onAddToCart: _addToCart,
-        onInquiry: () => _todo('Place inquiry'),
+        onInquiry: () => Navigator.of(context).pushNamed(
+          AppRoutes.newInquiry,
+          arguments: InquiryArgs.fromProduct(widget.product),
+        ),
       ),
     );
   }
@@ -480,10 +484,7 @@ class _Pair extends StatelessWidget {
       children: [
         Text(
           pair.label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 4),
         Text(
@@ -760,7 +761,7 @@ class _SimilarCard extends StatelessWidget {
                             gradient: AppColors.machineGradient,
                           ),
                         )
-                      : Image.asset(image, fit: BoxFit.cover),
+                      : AppImage(image, fit: BoxFit.cover),
                 ),
                 if (isNew)
                   Positioned(

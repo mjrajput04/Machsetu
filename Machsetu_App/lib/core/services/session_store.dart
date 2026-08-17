@@ -1,111 +1,118 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api_client.dart';
 
 /// Persists the signed-in session and the buyer's profile.
 ///
-/// Backed by SharedPreferences (NSUserDefaults / SharedPreferences /
-/// localStorage), so it survives app restarts on mobile and browser reloads on
-/// web. Swap the stored flag for a real auth token once the API is live —
-/// and move the token to secure storage before shipping to production.
+/// The auth token and the last known profile are cached locally so the app
+/// opens straight to the marketplace, then refreshed from the API in the
+/// background.
 class SessionStore {
   SessionStore._();
 
   static final SessionStore instance = SessionStore._();
 
-  static const String _keyLoggedIn = 'machsetu.logged_in';
-  static const String _keyName = 'machsetu.user_name';
-  static const String _keyEmail = 'machsetu.user_email';
-  static const String _keyPhone = 'machsetu.user_phone';
-  static const String _keyRole = 'machsetu.user_role';
-  static const String _keyCompany = 'machsetu.user_company';
-  static const String _keyGstin = 'machsetu.user_gstin';
-  static const String _keyAddress = 'machsetu.user_address';
-  static const String _keyCity = 'machsetu.user_city';
-  static const String _keyState = 'machsetu.user_state';
-  static const String _keyZip = 'machsetu.user_zip';
+  static const String _keyToken = 'machsetu.token';
+  static const String _keyUser = 'machsetu.user';
 
-  static const String _keyTwoFactor = 'machsetu.security_2fa';
-  static const String _keyBiometrics = 'machsetu.security_biometrics';
-  static const String _keyLoginAlerts = 'machsetu.security_login_alerts';
-
-  /// SharedPreferences keeps its own in-memory instance after the first load,
-  /// so this stays cheap without a second cache layer here.
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyLoggedIn) ?? false;
+    return (prefs.getString(_keyToken) ?? '').isNotEmpty;
   }
 
-  Future<void> save({String? name, String? email, String? phone}) async {
+  Future<String?> token() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyLoggedIn, true);
-    if (name != null) await prefs.setString(_keyName, name);
-    if (email != null) await prefs.setString(_keyEmail, email);
-    if (phone != null) await prefs.setString(_keyPhone, phone);
+    final value = prefs.getString(_keyToken);
+    return (value == null || value.isEmpty) ? null : value;
   }
 
-  Future<SessionUser> user() async {
+  /// Stores the token and profile returned by login or OTP verification.
+  Future<void> saveSession({
+    required String token,
+    required Map<String, dynamic> user,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    return SessionUser(
-      name: prefs.getString(_keyName) ?? '',
-      email: prefs.getString(_keyEmail) ?? '',
-      phone: prefs.getString(_keyPhone) ?? '',
-      role: prefs.getString(_keyRole) ?? '',
-      company: prefs.getString(_keyCompany) ?? '',
-      gstin: prefs.getString(_keyGstin) ?? '',
-      address: prefs.getString(_keyAddress) ?? '',
-      city: prefs.getString(_keyCity) ?? '',
-      state: prefs.getString(_keyState) ?? '',
-      zip: prefs.getString(_keyZip) ?? '',
-    );
+    await prefs.setString(_keyToken, token);
+    await prefs.setString(_keyUser, jsonEncode(user));
+  }
+
+  /// Cached profile. Pass `refresh: true` to pull the latest from the API.
+  Future<SessionUser> user({bool refresh = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (refresh) {
+      final auth = prefs.getString(_keyToken);
+      if (auth != null && auth.isNotEmpty) {
+        final result = await ApiClient.instance.get('/api/profile', token: auth);
+        if (result.ok) {
+          final fresh = result.data['user'] as Map<String, dynamic>;
+          await prefs.setString(_keyUser, jsonEncode(fresh));
+          return SessionUser.fromJson(fresh);
+        }
+      }
+    }
+
+    final raw = prefs.getString(_keyUser);
+    if (raw == null || raw.isEmpty) return const SessionUser.empty();
+    try {
+      return SessionUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return const SessionUser.empty();
+    }
   }
 
   /// Writes every profile field at once from the edit form.
-  Future<void> saveProfile(SessionUser user) async {
+  Future<String?> saveProfile(SessionUser user) async {
+    final auth = await token();
+    if (auth == null) return 'Please sign in again';
+
+    final result = await ApiClient.instance.put(
+      '/api/profile',
+      token: auth,
+      body: user.toJson(),
+    );
+    if (!result.ok) return result.message;
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyName, user.name);
-    await prefs.setString(_keyEmail, user.email);
-    await prefs.setString(_keyPhone, user.phone);
-    await prefs.setString(_keyRole, user.role);
-    await prefs.setString(_keyCompany, user.company);
-    await prefs.setString(_keyGstin, user.gstin);
-    await prefs.setString(_keyAddress, user.address);
-    await prefs.setString(_keyCity, user.city);
-    await prefs.setString(_keyState, user.state);
-    await prefs.setString(_keyZip, user.zip);
+    await prefs.setString(_keyUser, jsonEncode(result.data['user']));
+    return null;
   }
 
   Future<SecuritySettings> security() async {
-    final prefs = await SharedPreferences.getInstance();
+    final current = await user();
     return SecuritySettings(
-      twoFactor: prefs.getBool(_keyTwoFactor) ?? false,
-      biometrics: prefs.getBool(_keyBiometrics) ?? false,
-      loginAlerts: prefs.getBool(_keyLoginAlerts) ?? true,
+      twoFactor: current.twoFactor,
+      biometrics: current.biometrics,
+      loginAlerts: current.loginAlerts,
     );
   }
 
-  Future<void> saveSecurity(SecuritySettings settings) async {
+  Future<String?> saveSecurity(SecuritySettings settings) async {
+    final auth = await token();
+    if (auth == null) return 'Please sign in again';
+
+    final result = await ApiClient.instance.put(
+      '/api/security',
+      token: auth,
+      body: {
+        'twoFactor': settings.twoFactor,
+        'biometrics': settings.biometrics,
+        'loginAlerts': settings.loginAlerts,
+      },
+    );
+    if (!result.ok) return result.message;
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyTwoFactor, settings.twoFactor);
-    await prefs.setBool(_keyBiometrics, settings.biometrics);
-    await prefs.setBool(_keyLoginAlerts, settings.loginAlerts);
+    await prefs.setString(_keyUser, jsonEncode(result.data['user']));
+    return null;
   }
 
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    for (final key in [
-      _keyLoggedIn,
-      _keyName,
-      _keyEmail,
-      _keyPhone,
-      _keyRole,
-      _keyCompany,
-      _keyGstin,
-      _keyAddress,
-      _keyCity,
-      _keyState,
-      _keyZip,
-    ]) {
-      await prefs.remove(key);
-    }
+    await prefs.remove(_keyToken);
+    await prefs.remove(_keyUser);
   }
 }
 
@@ -114,33 +121,106 @@ class SessionUser {
     required this.name,
     required this.email,
     required this.phone,
+    this.avatar = '',
     this.role = '',
     this.company = '',
     this.gstin = '',
+    this.pan = '',
     this.address = '',
     this.city = '',
     this.state = '',
     this.zip = '',
+    this.twoFactor = false,
+    this.biometrics = false,
+    this.loginAlerts = true,
   });
+
+  const SessionUser.empty()
+    : name = '',
+      email = '',
+      phone = '',
+      avatar = '',
+      role = '',
+      company = '',
+      gstin = '',
+      pan = '',
+      address = '',
+      city = '',
+      state = '',
+      zip = '',
+      twoFactor = false,
+      biometrics = false,
+      loginAlerts = true;
+
+  factory SessionUser.fromJson(Map<String, dynamic> json) {
+    String text(String key) => json[key]?.toString() ?? '';
+    bool flag(String key, {bool fallback = false}) =>
+        json[key] is bool ? json[key] as bool : fallback;
+
+    return SessionUser(
+      name: text('name'),
+      email: text('email'),
+      phone: text('phone'),
+      avatar: text('avatar'),
+      // The API calls it `designation`; the app has always called it `role`.
+      role: text('designation'),
+      company: text('company'),
+      gstin: text('gstin'),
+      pan: text('pan'),
+      address: text('address'),
+      city: text('city'),
+      state: text('state'),
+      zip: text('zip'),
+      twoFactor: flag('twoFactor'),
+      biometrics: flag('biometrics'),
+      loginAlerts: flag('loginAlerts', fallback: true),
+    );
+  }
 
   final String name;
   final String email;
   final String phone;
+
+  /// Uploaded profile photo path; empty until they pick one.
+  final String avatar;
+
+  /// Job title, e.g. "Senior Procurement Director".
   final String role;
   final String company;
   final String gstin;
+  final String pan;
   final String address;
   final String city;
   final String state;
   final String zip;
 
+  final bool twoFactor;
+  final bool biometrics;
+  final bool loginAlerts;
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'email': email,
+    'avatar': avatar,
+    'designation': role,
+    'company': company,
+    'gstin': gstin,
+    'pan': pan,
+    'address': address,
+    'city': city,
+    'state': state,
+    'zip': zip,
+  };
+
   SessionUser copyWith({
     String? name,
     String? email,
     String? phone,
+    String? avatar,
     String? role,
     String? company,
     String? gstin,
+    String? pan,
     String? address,
     String? city,
     String? state,
@@ -150,13 +230,18 @@ class SessionUser {
       name: name ?? this.name,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      avatar: avatar ?? this.avatar,
       role: role ?? this.role,
       company: company ?? this.company,
       gstin: gstin ?? this.gstin,
+      pan: pan ?? this.pan,
       address: address ?? this.address,
       city: city ?? this.city,
       state: state ?? this.state,
       zip: zip ?? this.zip,
+      twoFactor: twoFactor,
+      biometrics: biometrics,
+      loginAlerts: loginAlerts,
     );
   }
 

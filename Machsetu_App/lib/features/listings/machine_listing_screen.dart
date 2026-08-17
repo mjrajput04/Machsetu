@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/catalogue_service.dart';
+import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../product/data/product.dart';
 import 'data/listings.dart';
@@ -15,16 +17,60 @@ class MachineListingScreen extends StatefulWidget {
 
 class _MachineListingScreenState extends State<MachineListingScreen> {
   String _category = ListingData.categories.first;
+  final _catalogue = CatalogueService.instance;
+
+  final _settings = SettingsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _catalogue.addListener(_onCatalogue);
+    _settings.addListener(_onCatalogue);
+    _catalogue.load();
+    _settings.load();
+  }
+
+  @override
+  void dispose() {
+    _catalogue.removeListener(_onCatalogue);
+    _settings.removeListener(_onCatalogue);
+    super.dispose();
+  }
+
+  void _onCatalogue() {
+    if (mounted) setState(() {});
+  }
+
+  /// Live listings carry the full record; bundled ones keep the demo shape.
+  Product _detailFor(Listing listing) {
+    final machine = _catalogue.byTitle(listing.title);
+    if (machine != null) return ProductCatalog.fromMachine(machine);
+    return ProductCatalog.from(
+      title: listing.title,
+      brand: listing.brand,
+      price: listing.price,
+      priceNote: listing.priceNote,
+      equipmentType: listing.category,
+      image: listing.image,
+      icon: listing.icon,
+    );
+  }
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final listings = ListingData.byCategory(_category);
+    final categories = _catalogue.listingCategories;
+    // A renamed or removed category must not leave the page filtering on a
+    // chip that no longer exists.
+    final category = categories.contains(_category)
+        ? _category
+        : categories.first;
+    final listings = _catalogue.listingsForCategory(category);
 
     return Scaffold(
       appBar: AppBar(
@@ -53,13 +99,13 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-              itemCount: ListingData.categories.length,
+              itemCount: categories.length,
               separatorBuilder: (_, _) => const SizedBox(width: 10),
               itemBuilder: (context, index) {
-                final label = ListingData.categories[index];
+                final label = categories[index];
                 return _CategoryChip(
                   label: label,
-                  selected: label == _category,
+                  selected: label == category,
                   onTap: () => setState(() => _category = label),
                 );
               },
@@ -76,15 +122,7 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
                           listing: listing,
                           onViewDetails: () => Navigator.of(context).pushNamed(
                             AppRoutes.product,
-                            arguments: ProductCatalog.from(
-                              title: listing.title,
-                              brand: listing.brand,
-                              price: listing.price,
-                              priceNote: listing.priceNote,
-                              equipmentType: listing.category,
-                              image: listing.image,
-                              icon: listing.icon,
-                            ),
+                            arguments: _detailFor(listing),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -209,7 +247,9 @@ class _ListingCardState extends State<ListingCard> {
                     child: Icon(
                       _saved ? Icons.favorite : Icons.favorite_border,
                       size: 17,
-                      color: _saved ? AppColors.accent : AppColors.textSecondary,
+                      color: _saved
+                          ? AppColors.accent
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ),

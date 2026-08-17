@@ -1,23 +1,60 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/order.dart';
 
-class OrderTrackingScreen extends StatelessWidget {
+class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
 
   final Order order;
 
-  void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
+  @override
+  State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
+}
+
+class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
+  final _store = OrderStore.instance;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_onStore);
+    _store.loadMine(force: true);
+    // The desk moves orders along on its own, so the timeline keeps checking.
+    _poll = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _store.loadMine(force: true),
     );
   }
 
   @override
+  void dispose() {
+    _poll?.cancel();
+    _store.removeListener(_onStore);
+    super.dispose();
+  }
+
+  void _onStore() {
+    if (mounted) setState(() {});
+  }
+
+  void _todo(BuildContext context, String label) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Always draw the server's copy; the pushed argument is only the seed.
+    final order = _store.byReference(widget.order.reference) ?? widget.order;
+
     return Scaffold(
       appBar: MachSetuAppBar(
         onAvatarTap: () => _todo(context, 'Profile'),
@@ -79,6 +116,8 @@ class OrderTrackingScreen extends StatelessWidget {
           const SizedBox(height: 18),
           _ProgressCard(order: order),
           const SizedBox(height: 16),
+          _DeliveryCard(order: order),
+          const SizedBox(height: 14),
           if (order.items.isNotEmpty) ...[
             _MachineCard(order: order),
             const SizedBox(height: 16),
@@ -153,7 +192,11 @@ class _ProgressCard extends StatelessWidget {
           const Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.account_tree_outlined, size: 21, color: AppColors.navy),
+              Icon(
+                Icons.account_tree_outlined,
+                size: 21,
+                color: AppColors.navy,
+              ),
               SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -228,9 +271,7 @@ class _StageRow extends StatelessWidget {
                 ),
               ),
               if (!isLast)
-                Expanded(
-                  child: Container(width: 2, color: AppColors.border),
-                ),
+                Expanded(child: Container(width: 2, color: AppColors.border)),
             ],
           ),
           const SizedBox(width: 14),
@@ -343,7 +384,7 @@ class _MachineCard extends StatelessWidget {
               width: double.infinity,
               child: image == null
                   ? _fallback(product.icon)
-                  : Image.asset(
+                  : AppImage(
                       image,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => _fallback(product.icon),
@@ -404,7 +445,11 @@ class _MachineCard extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(gradient: AppColors.machineGradient),
       child: Center(
-        child: Icon(icon, size: 44, color: AppColors.navy.withValues(alpha: 0.35)),
+        child: Icon(
+          icon,
+          size: 44,
+          color: AppColors.navy.withValues(alpha: 0.35),
+        ),
       ),
     );
   }
@@ -537,6 +582,111 @@ class _AssistanceCard extends StatelessWidget {
   }
 }
 
+/// Where the machine is going and who signs for it — straight from the
+/// checkout form, so the buyer can check it before the truck is booked.
+class _DeliveryCard extends StatelessWidget {
+  const _DeliveryCard({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(String, String)>[
+      ('Contact Person', order.contactName),
+      ('Company', order.contactCompany),
+      ('Mobile', order.contactPhone),
+      ('GSTIN', order.contactGstin),
+      ('Logistics', order.logisticsMode),
+    ].where((r) => r.$2.trim().isNotEmpty).toList();
+
+    final address = order.deliveryAddress.trim().isEmpty
+        ? order.location
+        : order.deliveryAddress;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                size: 18,
+                color: AppColors.brandBlue,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Delivery Details',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navy,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                order.reference,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            address.isEmpty ? 'Address not provided' : address,
+            style: const TextStyle(
+              fontSize: 13.5,
+              height: 1.5,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (rows.isNotEmpty) const SizedBox(height: 6),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 118,
+                    child: Text(
+                      row.$1,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      row.$2,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Origin panel. A real map tile goes here once a maps SDK is wired up.
 class _TransitCard extends StatelessWidget {
   const _TransitCard();
@@ -558,10 +708,7 @@ class _TransitCard extends StatelessWidget {
             top: 16,
             left: 16,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(8),

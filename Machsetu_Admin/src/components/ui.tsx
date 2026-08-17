@@ -122,11 +122,13 @@ export function statusTone(status: string): Tone {
     case "Pending Review":
     case "Pending KYC":
     case "Awaiting Review":
+    case "Awaiting Quote":
     case "New":
       return "warning";
     case "Rejected":
     case "Suspended":
     case "Lost":
+    case "Expired":
       return "danger";
     case "Under Offer":
     case "Negotiating":
@@ -135,6 +137,7 @@ export function statusTone(status: string): Tone {
     case "Inspection Scheduled":
     case "Broker Assigned":
     case "Quoted":
+    case "Quote Received":
     case "Price Confirmed":
     case "Machine Reserved":
     case "Delivery Scheduled":

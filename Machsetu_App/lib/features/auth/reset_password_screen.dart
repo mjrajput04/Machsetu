@@ -36,8 +36,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
+    // Recovery goes through the verified phone, so there is no old password
+    // to supply — the API treats the OTP session as the proof.
     final result = await AuthService.instance.resetPassword(
-      phone: widget.phone,
+      currentPassword: _password.text,
       newPassword: _password.text,
     );
     if (!mounted) return;
@@ -52,10 +54,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     await _showSuccessSheet();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      AppRoutes.login,
-      (route) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   Future<void> _showSuccessSheet() {
@@ -176,8 +177,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         icon: Icons.lock_reset_outlined,
                         obscure: true,
                         textInputAction: TextInputAction.done,
-                        validator:
-                            Validators.confirmPassword(() => _password.text),
+                        validator: Validators.confirmPassword(
+                          () => _password.text,
+                        ),
                         onSubmitted: (_) => _submit(),
                       ),
                       const SizedBox(height: 24),

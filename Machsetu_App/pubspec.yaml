@@ -38,6 +38,18 @@ dependencies:
   # Keeps the signed-in session across app restarts.
   shared_preferences: ^2.3.2
 
+  # Talks to the MachSetu admin API.
+  http: ^1.2.2
+
+  # Lets sellers attach real photos of the machine they are listing.
+  image_picker: ^1.1.2
+
+  # Stamps the right MIME type on multipart uploads.
+  http_parser: ^4.0.2
+
+  # Lets sellers attach invoices and certificates to a listing.
+  file_picker: ^8.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

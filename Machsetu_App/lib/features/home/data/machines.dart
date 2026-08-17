@@ -15,6 +15,7 @@ class MachineSpec {
 class Machine {
   const Machine({
     required this.title,
+    this.id = '',
     required this.brand,
     required this.subtitle,
     required this.category,
@@ -35,6 +36,9 @@ class Machine {
     required this.features,
     this.icon = Icons.precision_manufacturing,
   });
+
+  /// Catalogue id, e.g. `MS-1001`. Empty for the bundled demo entries.
+  final String id;
 
   final String title;
 
@@ -217,11 +221,7 @@ class MachineData {
           label: 'YEAR',
           value: '2018',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'SWING',
-          value: '658mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'SWING', value: '658mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Multi-Tasking Turning Center'),
@@ -251,12 +251,7 @@ class MachineData {
         'Ideal for job shops moving from multi-operation routing to done-in-'
             'one manufacturing. Under AMC until 2027.',
       ],
-      features: [
-        'Done-In-One',
-        'Y-Axis',
-        'Sub Spindle',
-        'Bar Feeder Ready',
-      ],
+      features: ['Done-In-One', 'Y-Axis', 'Sub Spindle', 'Bar Feeder Ready'],
     ),
     Machine(
       title: 'Mazak HCN-4000',
@@ -285,11 +280,7 @@ class MachineData {
           label: 'YEAR',
           value: '2017',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'PALLET',
-          value: '400mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'PALLET', value: '400mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Horizontal Machining Center'),
@@ -344,7 +335,11 @@ class MachineData {
       icon: Icons.precision_manufacturing,
       images: ['$_p/haas_vf2ss.jpg', '$_p/haas_vf2.jpg'],
       specs: [
-        MachineSpec(icon: Icons.factory_outlined, label: 'BRAND', value: 'HAAS'),
+        MachineSpec(
+          icon: Icons.factory_outlined,
+          label: 'BRAND',
+          value: 'HAAS',
+        ),
         MachineSpec(
           icon: Icons.calendar_today_outlined,
           label: 'YEAR',
@@ -478,11 +473,7 @@ class MachineData {
           label: 'YEAR',
           value: '2020',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'TRAVEL',
-          value: '1300mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'TRAVEL', value: '1300mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Vertical Machining Center'),
@@ -547,11 +538,7 @@ class MachineData {
           label: 'YEAR',
           value: '2018',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'SWING',
-          value: '350mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'SWING', value: '350mm'),
       ],
       machineDetails: [
         ('Machine Type', 'CNC Turning Center'),
@@ -663,7 +650,11 @@ class MachineData {
       icon: Icons.rotate_90_degrees_ccw,
       images: ['$_p/lathe_wasino.jpg', '$_p/mazak_quick_turn.jpg'],
       specs: [
-        MachineSpec(icon: Icons.factory_outlined, label: 'BRAND', value: 'HAAS'),
+        MachineSpec(
+          icon: Icons.factory_outlined,
+          label: 'BRAND',
+          value: 'HAAS',
+        ),
         MachineSpec(
           icon: Icons.calendar_today_outlined,
           label: 'YEAR',
@@ -730,11 +721,7 @@ class MachineData {
           label: 'YEAR',
           value: '2017',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'CENTRES',
-          value: '1000mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'CENTRES', value: '1000mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Universal Cylindrical Grinder'),
@@ -799,11 +786,7 @@ class MachineData {
           label: 'YEAR',
           value: '2019',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'TABLE',
-          value: '300x600',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'TABLE', value: '300x600'),
       ],
       machineDetails: [
         ('Machine Type', 'Precision Surface Grinder'),
@@ -867,11 +850,7 @@ class MachineData {
           label: 'YEAR',
           value: '2016',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'CAPACITY',
-          value: 'Ø100mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'CAPACITY', value: 'Ø100mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Centreless Grinding Machine'),
@@ -936,11 +915,7 @@ class MachineData {
           label: 'YEAR',
           value: '2019',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'TRAVEL',
-          value: '400mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'TRAVEL', value: '400mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Wire Cut EDM'),
@@ -1004,11 +979,7 @@ class MachineData {
           label: 'YEAR',
           value: '2020',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'TRAVEL',
-          value: '400mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'TRAVEL', value: '400mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Wire Cut EDM'),
@@ -1072,11 +1043,7 @@ class MachineData {
           label: 'YEAR',
           value: '2018',
         ),
-        MachineSpec(
-          icon: Icons.straighten,
-          label: 'TRAVEL',
-          value: '300mm',
-        ),
+        MachineSpec(icon: Icons.straighten, label: 'TRAVEL', value: '300mm'),
       ],
       machineDetails: [
         ('Machine Type', 'Sinker EDM with small hole drilling'),

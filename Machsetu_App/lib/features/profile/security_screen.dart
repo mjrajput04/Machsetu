@@ -82,9 +82,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
 
     if (changed != true || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password updated')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Password updated')));
   }
 
   Future<void> _revoke(_Session session) async {
@@ -137,9 +137,9 @@ class _SecurityScreenState extends State<SecurityScreen> {
 
     if (confirmed != true || !mounted) return;
     setState(() => _sessions.remove(session));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${session.device} signed out')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${session.device} signed out')));
   }
 
   @override
@@ -310,7 +310,8 @@ class _SecurityScore extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Password counts as always-on; the rest are opt-in hardening.
-    final enabled = 1 +
+    final enabled =
+        1 +
         (settings.twoFactor ? 1 : 0) +
         (settings.biometrics ? 1 : 0) +
         (settings.loginAlerts ? 1 : 0);
@@ -376,10 +377,7 @@ class _SecurityScore extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             '$enabled of 4 protections enabled',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.steelLight,
-            ),
+            style: const TextStyle(fontSize: 12, color: AppColors.steelLight),
           ),
         ],
       ),
@@ -662,9 +660,8 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
-    final user = await SessionStore.instance.user();
     final result = await AuthService.instance.resetPassword(
-      phone: user.phone,
+      currentPassword: _current.text,
       newPassword: _next.text,
     );
     if (!mounted) return;

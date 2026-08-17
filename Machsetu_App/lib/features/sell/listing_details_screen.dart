@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import 'data/sell_store.dart';
 import 'submission_status_screen.dart';
 import 'widgets/sell_widgets.dart';
@@ -12,9 +13,9 @@ class ListingDetailsScreen extends StatelessWidget {
   final SellListing listing;
 
   void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -50,12 +51,11 @@ class ListingDetailsScreen extends StatelessWidget {
                           color: AppColors.navy.withValues(alpha: 0.35),
                         ),
                       )
-                    : Image.asset(
+                    : AppImage(
                         hero,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const ColoredBox(
-                          color: AppColors.steelBright,
-                        ),
+                        errorBuilder: (_, _, _) =>
+                            const ColoredBox(color: AppColors.steelBright),
                       ),
               ),
               Positioned(
@@ -184,8 +184,9 @@ class ListingDetailsScreen extends StatelessWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.success
-                                    .withValues(alpha: 0.11),
+                                color: AppColors.success.withValues(
+                                  alpha: 0.11,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
@@ -319,8 +320,9 @@ class ListingDetailsScreen extends StatelessWidget {
                                 height: 38,
                                 width: 38,
                                 decoration: BoxDecoration(
-                                  color: AppColors.danger
-                                      .withValues(alpha: 0.1),
+                                  color: AppColors.danger.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -542,12 +544,11 @@ class _Thumb extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
+            AppImage(
               path,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const ColoredBox(
-                color: AppColors.steelBright,
-              ),
+              errorBuilder: (_, _, _) =>
+                  const ColoredBox(color: AppColors.steelBright),
             ),
             if (overlay != null)
               ColoredBox(

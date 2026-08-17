@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../cart/data/cart_store.dart';
+import 'order_api.dart';
 
 /// Where an order sits in the procurement pipeline.
 enum OrderStatus {
@@ -72,6 +73,11 @@ class Order {
     this.note,
     this.stageIndex = 1,
     this.icon = Icons.precision_manufacturing,
+    this.deliveryAddress = '',
+    this.contactName = '',
+    this.contactPhone = '',
+    this.contactCompany = '',
+    this.contactGstin = '',
   });
 
   /// Buyer-facing order number, e.g. `#CP-99203`.
@@ -103,6 +109,15 @@ class Order {
   final int stageIndex;
   final IconData icon;
 
+  // ---- Taken from the checkout form, shown on the tracking screen --------
+
+  /// Street, city, state and pincode as one line.
+  final String deliveryAddress;
+  final String contactName;
+  final String contactPhone;
+  final String contactCompany;
+  final String contactGstin;
+
   /// Longer id used on the tracking screen, e.g. `#CP-99203-AX`.
   String get trackingId => '$reference-AX';
 
@@ -111,10 +126,10 @@ class Order {
       stages[(stageIndex - 1).clamp(0, stages.length - 1)].title;
 }
 
-/// In-memory order history.
+/// The buyer's order history, backed by the orders API.
 ///
-/// Not persisted — placed orders are lost on restart. Move this behind the
-/// orders API when the backend exists.
+/// What the sourcing desk has on file wins; the local list is only a cache so
+/// the Orders tab still renders while offline.
 class OrderStore extends ChangeNotifier {
   OrderStore._();
 
@@ -129,19 +144,90 @@ class OrderStore extends ChangeNotifier {
   bool get isEmpty => _orders.isEmpty;
 
   /// Open inquiries, newest first.
-  List<Order> get active =>
-      _orders.where((o) => !o.status.isClosed).toList();
+  List<Order> get active => _orders.where((o) => !o.status.isClosed).toList();
 
   /// Delivered and cancelled orders.
-  List<Order> get history =>
-      _orders.where((o) => o.status.isClosed).toList();
+  List<Order> get history => _orders.where((o) => o.status.isClosed).toList();
+
+  bool _loading = false;
+  DateTime? _fetchedAt;
+
+  /// A stage the desk changes should reach the buyer without a restart.
+  static const Duration freshFor = Duration(seconds: 20);
+
+  bool get _isStale {
+    final at = _fetchedAt;
+    return at == null || DateTime.now().difference(at) > freshFor;
+  }
+
+  /// Replaces the cached history with what the server holds.
+  Future<void> loadMine({bool force = false}) async {
+    if (_loading || (!force && !_isStale)) return;
+    // Set without notifying — loadMine() runs from initState.
+    _loading = true;
+
+    final fetched = await OrderApi.mine();
+    if (fetched != null) {
+      _orders
+        ..clear()
+        ..addAll(fetched);
+      _fetchedAt = DateTime.now();
+    }
+
+    _loading = false;
+    notifyListeners();
+  }
+
+  /// The server's current copy of an order, by reference.
+  Order? byReference(String reference) {
+    for (final order in _orders) {
+      if (order.reference == reference) return order;
+    }
+    return null;
+  }
+
+  /// Sends the cart to the desk, then mirrors the order locally.
+  ///
+  /// Falls back to a local-only order when the server cannot be reached, so
+  /// the buyer still reaches the confirmation screen.
+  Future<({Order order, String? error})> submit(
+    CartStore cart, {
+    String location = 'India',
+    Map<String, dynamic> customer = const {},
+  }) async {
+    final sent = await OrderApi.place(
+      cart,
+      destination: location,
+      customer: customer,
+    );
+    final order = place(
+      cart,
+      location: location,
+      reference: sent.reference,
+      customer: customer,
+    );
+
+    if (sent.reference != null) {
+      await loadMine(force: true);
+      return (
+        order: byReference(sent.reference!) ?? order,
+        error: null,
+      );
+    }
+    return (order: order, error: sent.error);
+  }
 
   /// Snapshots the cart into a new order. The caller clears the cart.
-  Order place(CartStore cart, {String location = 'India'}) {
+  Order place(
+    CartStore cart, {
+    String location = 'India',
+    String? reference,
+    Map<String, dynamic> customer = const {},
+  }) {
     final first = cart.items.isEmpty ? null : cart.items.first.product;
 
     final order = Order(
-      reference: _reference(cart),
+      reference: reference ?? _reference(cart),
       placedOn: _today(),
       title: first?.title ?? 'Industrial equipment',
       status: OrderStatus.inquiryReceived,
@@ -158,6 +244,16 @@ class OrderStore extends ChangeNotifier {
           : null,
       icon: first?.icon ?? Icons.precision_manufacturing,
       stages: _stages(),
+      deliveryAddress: [
+        customer['street'],
+        customer['city'],
+        customer['state'],
+        customer['zip'],
+      ].map((v) => (v ?? '').toString()).where((v) => v.isNotEmpty).join(', '),
+      contactName: (customer['name'] ?? '').toString(),
+      contactPhone: (customer['phone'] ?? '').toString(),
+      contactCompany: (customer['company'] ?? '').toString(),
+      contactGstin: (customer['gstin'] ?? '').toString(),
     );
 
     _orders.insert(0, order);
@@ -295,48 +391,45 @@ class OrderStore extends ChangeNotifier {
         '$hour:$minute $period';
   }
 
+  /// The tracking timeline, shared with orders rebuilt from the API.
+  List<TrackingStage> timelineStages() => _stages();
+
   List<TrackingStage> _stages() {
     return [
       TrackingStage(
         title: 'Inquiry Received',
         icon: Icons.check,
         stamp: _stamp(),
-        detail: 'Your industrial machine inquiry has been logged. Our '
+        detail:
+            'Your industrial machine inquiry has been logged. Our '
             'technical sourcing team is reviewing the specifications for '
             'compatibility.',
       ),
       const TrackingStage(
         title: 'Under Review',
         icon: Icons.pending_outlined,
-        detail: 'Detailed audit of manufacturing capability and lead times is '
+        detail:
+            'Detailed audit of manufacturing capability and lead times is '
             'currently in progress. Estimated completion: Today, 5:00 PM.',
       ),
       const TrackingStage(
         title: 'Broker Contacting You',
         icon: Icons.headset_mic_outlined,
-        detail: 'A dedicated equipment specialist will reach out to finalize '
+        detail:
+            'A dedicated equipment specialist will reach out to finalize '
             'logistics details.',
       ),
-      const TrackingStage(
-        title: 'Price Confirmed',
-        icon: Icons.currency_rupee,
-      ),
+      const TrackingStage(title: 'Price Confirmed', icon: Icons.currency_rupee),
       const TrackingStage(
         title: 'Machine Reserved',
         icon: Icons.bookmark_border,
       ),
-      const TrackingStage(
-        title: 'Order Confirmed',
-        icon: Icons.task_alt,
-      ),
+      const TrackingStage(title: 'Order Confirmed', icon: Icons.task_alt),
       const TrackingStage(
         title: 'Delivery Scheduled',
         icon: Icons.local_shipping_outlined,
       ),
-      const TrackingStage(
-        title: 'Delivered',
-        icon: Icons.place_outlined,
-      ),
+      const TrackingStage(title: 'Delivered', icon: Icons.place_outlined),
     ];
   }
 }

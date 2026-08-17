@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/services/session_store.dart';
+import '../../core/services/upload_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
+import '../../core/widgets/app_image.dart';
 import 'data/profile_data.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -58,7 +61,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _load() async {
-    final user = await SessionStore.instance.user();
+    // Fresh from the server, so the form never opens on stale values.
+    final user = await SessionStore.instance.user(refresh: true);
     if (!mounted) return;
     setState(() {
       _name.text = user.name.isEmpty ? ProfileData.fallbackName : user.name;
@@ -71,9 +75,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _city.text = user.city;
       _state.text = user.state;
       _zip.text = user.zip;
+      _avatar = user.avatar;
       _loading = false;
     });
   }
+
+  /// Uploaded photo path, empty when the account has none.
+  String _avatar = '';
 
   Future<void> _save() async {
     FocusScope.of(context).unfocus();
@@ -85,6 +93,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         name: _name.text.trim(),
         email: _email.text.trim(),
         phone: _phone.text.trim(),
+        avatar: _avatar,
         role: _role.text.trim(),
         company: _company.text.trim(),
         gstin: _gstin.text.trim().toUpperCase(),
@@ -97,9 +106,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (!mounted) return;
     setState(() => _saving = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Profile updated')));
     Navigator.of(context).pop(true);
   }
 
@@ -129,23 +138,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             for (final option in const [
-              (Icons.photo_camera_outlined, 'Take a photo'),
-              (Icons.photo_library_outlined, 'Choose from gallery'),
-              (Icons.delete_outline, 'Remove photo'),
+              (Icons.photo_camera_outlined, 'Take a photo', ImageSource.camera),
+              (
+                Icons.photo_library_outlined,
+                'Choose from gallery',
+                ImageSource.gallery,
+              ),
+              (Icons.delete_outline, 'Remove photo', null),
             ])
               ListTile(
                 leading: Icon(option.$1, size: 21, color: AppColors.brandBlue),
                 title: Text(option.$2),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Photo upload needs the image picker — ask to enable '
-                        'it',
-                      ),
-                    ),
-                  );
+                  final source = option.$3;
+                  if (source == null) {
+                    setState(() => _avatar = '');
+                    return;
+                  }
+                  _uploadPhoto(source);
                 },
               ),
             const SizedBox(height: 8),
@@ -155,8 +166,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
+  /// Sends the picked photo to the panel and keeps the returned path.
+  Future<void> _uploadPhoto(ImageSource source) async {
+    setState(() => _uploadingPhoto = true);
+    final url = await UploadService.instance.pickOneAndUpload(source: source);
+    if (!mounted) return;
+    setState(() {
+      _uploadingPhoto = false;
+      if (url != null) _avatar = url;
+    });
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not upload that photo')),
+      );
+    }
+  }
+
+  bool _uploadingPhoto = false;
+
   String get _initials {
-    final parts = _name.text.trim().split(RegExp(r'\s+'))
+    final parts = _name.text
+        .trim()
+        .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty)
         .toList();
     if (parts.isEmpty) return 'MS';
@@ -188,6 +219,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     Center(
                       child: _AvatarPicker(
                         initials: _initials,
+                        photo: _avatar,
+                        busy: _uploadingPhoto,
                         onTap: _changePhoto,
                       ),
                     ),
@@ -326,8 +359,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               width: 22,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.4,
-                                valueColor:
-                                    AlwaysStoppedAnimation(Colors.white),
+                                valueColor: AlwaysStoppedAnimation(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Text(
@@ -356,9 +390,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 }
 
 class _AvatarPicker extends StatelessWidget {
-  const _AvatarPicker({required this.initials, required this.onTap});
+  const _AvatarPicker({
+    required this.initials,
+    required this.photo,
+    required this.busy,
+    required this.onTap,
+  });
 
   final String initials;
+  final String photo;
+  final bool busy;
   final VoidCallback onTap;
 
   @override
@@ -384,14 +425,26 @@ class _AvatarPicker extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: busy
+                  ? const SizedBox(
+                      height: 26,
+                      width: 26,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: Colors.white,
+                      ),
+                    )
+                  : photo.isNotEmpty
+                  ? AppImage(photo, fit: BoxFit.cover, height: 96, width: 96)
+                  : Text(
+                      initials,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
             ),
             Positioned(
               right: -2,
@@ -417,10 +470,7 @@ class _AvatarPicker extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        TextButton(
-          onPressed: onTap,
-          child: const Text('Change Photo'),
-        ),
+        TextButton(onPressed: onTap, child: const Text('Change Photo')),
       ],
     );
   }

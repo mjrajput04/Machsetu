@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/otp_input.dart';
 import '../../core/widgets/primary_button.dart';
@@ -108,20 +107,14 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
     switch (widget.args.purpose) {
       case OtpPurpose.registration:
-        await SessionStore.instance.save(
-          phone: widget.args.phone,
-          name: widget.args.name,
-        );
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Mobile number verified. Welcome to MachSetu!'),
           ),
         );
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          AppRoutes.home,
-          (route) => false,
-        );
+        Navigator.of(
+          context,
+        ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
       case OtpPurpose.resetPassword:
         Navigator.of(context).pushReplacementNamed(
           AppRoutes.resetPassword,
@@ -235,7 +228,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Demo mode — use code ${AuthService.demoOtp}',
+                              'Demo mode — use code '
+                              '${AuthService.instance.lastIssuedOtp ?? AuthService.demoOtp}',
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
@@ -248,7 +242,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                     ),
                     const SizedBox(height: 22),
                     PrimaryButton(
-                      label: isRegistration ? 'Verify & Continue' : 'Verify OTP',
+                      label: isRegistration
+                          ? 'Verify & Continue'
+                          : 'Verify OTP',
                       loading: _loading,
                       onPressed: _verify,
                     ),
@@ -261,21 +257,21 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : _secondsLeft > 0
-                              ? Text(
-                                  'Resend code in 00:'
-                                  '${_secondsLeft.toString().padLeft(2, '0')}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                )
-                              : TextButton(
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: AppColors.brandBlue,
-                                  ),
-                                  onPressed: _resend,
-                                  child: const Text('Resend Code'),
-                                ),
+                          ? Text(
+                              'Resend code in 00:'
+                              '${_secondsLeft.toString().padLeft(2, '0')}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            )
+                          : TextButton(
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.brandBlue,
+                              ),
+                              onPressed: _resend,
+                              child: const Text('Resend Code'),
+                            ),
                     ),
                   ],
                 ),

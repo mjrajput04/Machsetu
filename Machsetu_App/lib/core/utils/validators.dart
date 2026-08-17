@@ -19,6 +19,17 @@ class Validators {
     return null;
   }
 
+  /// Login accepts either an email address or a 10-digit mobile number.
+  static String? loginIdentifier(String? value) {
+    final v = (value ?? '').trim();
+    if (v.isEmpty) return 'Enter your email or mobile number';
+    if (v.contains('@')) return email(v);
+
+    final digits = v.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 10) return phone(digits);
+    return 'Enter a valid email address or 10-digit mobile number';
+  }
+
   static String? phone(String? value) {
     final v = (value ?? '').replaceAll(RegExp(r'\D'), '');
     if (v.isEmpty) return 'Mobile number is required';

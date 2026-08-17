@@ -1,8 +1,9 @@
-import 'dart:async';
 
-import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_image.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
 /// Hero photo carousel that advances on its own.
 ///
@@ -89,7 +90,7 @@ class _ProductHeroState extends State<ProductHero> {
                 controller: _controller,
                 itemCount: widget.images.length,
                 onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, index) => Image.asset(
+                itemBuilder: (context, index) => AppImage(
                   widget.images[index],
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => _fallback(),

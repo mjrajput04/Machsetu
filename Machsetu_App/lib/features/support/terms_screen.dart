@@ -1,9 +1,34 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
 
-class TermsScreen extends StatelessWidget {
+class TermsScreen extends StatefulWidget {
   const TermsScreen({super.key});
+
+  @override
+  State<TermsScreen> createState() => _TermsScreenState();
+}
+
+class _TermsScreenState extends State<TermsScreen> {
+  final _settings = SettingsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _settings.addListener(_onSettings);
+    _settings.load();
+  }
+
+  @override
+  void dispose() {
+    _settings.removeListener(_onSettings);
+    super.dispose();
+  }
+
+  void _onSettings() {
+    if (mounted) setState(() {});
+  }
 
   static const String updated = 'Last updated: 1 August 2026';
 
@@ -142,10 +167,14 @@ class TermsScreen extends StatelessWidget {
                 left: BorderSide(color: AppColors.accent, width: 4),
               ),
             ),
-            child: const Text(
-              'This is a plain-language summary for the prototype. Have your '
-              'legal counsel review and replace this content before launch.',
-              style: TextStyle(
+            child: Text(
+              // Written by the desk on the admin panel's Help & Terms page.
+              _settings.support.terms.isEmpty
+                  ? 'This is a plain-language summary for the prototype. Have '
+                        'your legal counsel review and replace this content '
+                        'before launch.'
+                  : _settings.support.terms,
+              style: const TextStyle(
                 fontSize: 12.5,
                 height: 1.6,
                 color: AppColors.textSecondary,

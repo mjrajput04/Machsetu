@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/catalogue_service.dart';
 import '../../core/services/session_store.dart';
+import '../../core/services/settings_service.dart';
+import '../notifications/data/notification_store.dart';
+import '../orders/data/order.dart';
 import '../../core/services/shell_tabs.dart';
 import '../../core/theme/app_colors.dart';
 import '../cart/cart_screen.dart';
@@ -20,19 +24,36 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _index = ShellTabs.selected.value;
 
   @override
   void initState() {
     super.initState();
     ShellTabs.selected.addListener(_onTabRequested);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
     ShellTabs.selected.removeListener(_onTabRequested);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back to the app is the moment to pick up anything the sourcing
+    // desk changed while it was in the background.
+    if (state == AppLifecycleState.resumed) _refresh(force: true);
+  }
+
+  /// Everything the desk can change behind the buyer's back.
+  void _refresh({bool force = false}) {
+    SettingsService.instance.load(force: force);
+    CatalogueService.instance.load(force: force);
+    OrderStore.instance.loadMine(force: force);
+    NotificationStore.instance.load(force: force);
   }
 
   /// Another screen asked for a tab — e.g. "View Cart" from the product page.
@@ -44,6 +65,8 @@ class _MainShellState extends State<MainShell> {
   void _select(int index) {
     ShellTabs.selected.value = index;
     setState(() => _index = index);
+    // Cheap: the services skip the call while their last copy is still fresh.
+    _refresh();
   }
 
   static const List<_TabItem> _tabs = [
@@ -86,10 +109,9 @@ class _MainShellState extends State<MainShell> {
   Future<void> _logout() async {
     await SessionStore.instance.clear();
     if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      AppRoutes.login,
-      (route) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   @override

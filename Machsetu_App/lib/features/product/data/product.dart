@@ -48,6 +48,7 @@ class ProductDocument {
 class Product {
   const Product({
     required this.title,
+    this.id = '',
     required this.brand,
     required this.series,
     required this.price,
@@ -65,6 +66,10 @@ class Product {
     this.equipmentType = 'Industrial Equipment',
     this.icon = Icons.precision_manufacturing,
   });
+
+  /// Catalogue id, e.g. `MS-1001`. Carried into the cart and the order so
+  /// the sourcing desk knows exactly which listing was bought.
+  final String id;
 
   final String title;
   final String brand;
@@ -202,7 +207,10 @@ class ProductCatalog {
   static Product fromMachine(Machine machine) {
     String detail(List<String> labels, String fallback) {
       for (final label in labels) {
-        for (final row in [...machine.machineDetails, ...machine.specifications]) {
+        for (final row in [
+          ...machine.machineDetails,
+          ...machine.specifications,
+        ]) {
           if (row.$1.toLowerCase() == label.toLowerCase()) return row.$2;
         }
       }
@@ -210,11 +218,14 @@ class ProductCatalog {
     }
 
     return Product(
+      id: machine.id,
       title: machine.title,
       brand: machine.brand,
       series: machine.category.toUpperCase(),
       price: machine.price,
-      priceNote: machine.note.isEmpty ? 'SHIPPING & INSTALLATION' : machine.note,
+      priceNote: machine.note.isEmpty
+          ? 'SHIPPING & INSTALLATION'
+          : machine.note,
       leadTime: '4-6 weeks',
       equipmentType: machine.subtitle,
       icon: machine.icon,
@@ -223,30 +234,37 @@ class ProductCatalog {
         ProductSpec(
           icon: Icons.speed_outlined,
           label: 'SPINDLE SPEED',
-          value: detail(
-            ['Spindle Speed', 'Main Spindle Speed', 'Grinding Wheel Speed',
-             'Max Discharge Current', 'Turning Spindle Speed'],
-            '—',
-          ),
+          value: detail([
+            'Spindle Speed',
+            'Main Spindle Speed',
+            'Grinding Wheel Speed',
+            'Max Discharge Current',
+            'Turning Spindle Speed',
+          ], '—'),
         ),
         ProductSpec(
           icon: Icons.straighten,
           label: 'WORK ENVELOPE',
-          value: detail(
-            ['Travels X/Y/Z', 'Max Turning Diameter', 'Max Cutting Diameter',
-             'Table Working Surface', 'Distance Between Centres',
-             'Grinding Diameter Range', 'Pallet Size'],
-            '—',
-          ),
+          value: detail([
+            'Travels X/Y/Z',
+            'Max Turning Diameter',
+            'Max Cutting Diameter',
+            'Table Working Surface',
+            'Distance Between Centres',
+            'Grinding Diameter Range',
+            'Pallet Size',
+          ], '—'),
         ),
         ProductSpec(
           icon: Icons.build_outlined,
           label: 'TOOLING',
-          value: detail(
-            ['Tool Magazine Capacity', 'Turret Stations', 'Grinding Wheel Size',
-             'Wire Diameter Range', 'Electrode Materials'],
-            '—',
-          ),
+          value: detail([
+            'Tool Magazine Capacity',
+            'Turret Stations',
+            'Grinding Wheel Size',
+            'Wire Diameter Range',
+            'Electrode Materials',
+          ], '—'),
         ),
         ProductSpec(
           icon: Icons.memory_outlined,
@@ -294,6 +312,7 @@ class ProductCatalog {
     required String title,
     required String brand,
     required String price,
+    String id = '',
     String priceNote = 'SHIPPING & INSTALLATION',
     String series = 'PRECISION SERIES',
     String leadTime = '4-6 weeks',
@@ -304,6 +323,7 @@ class ProductCatalog {
     final shortName = title.split(' ').take(2).join(' ');
 
     return Product(
+      id: id,
       title: title,
       brand: brand,
       series: series,

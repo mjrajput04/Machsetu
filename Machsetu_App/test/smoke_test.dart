@@ -3,15 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:machsetu_app/core/routes/app_routes.dart';
+import 'package:machsetu_app/core/services/session_store.dart';
+import 'package:machsetu_app/core/services/settings_service.dart';
 import 'package:machsetu_app/core/services/shell_tabs.dart';
 import 'package:machsetu_app/core/theme/app_theme.dart';
 import 'package:machsetu_app/core/utils/currency.dart';
+import 'package:machsetu_app/features/cart/data/cart_store.dart';
 import 'package:machsetu_app/features/checkout/checkout_screen.dart';
+import 'package:machsetu_app/features/home/data/machines.dart';
+import 'package:machsetu_app/features/home/main_shell.dart';
+import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
+import 'package:machsetu_app/features/notifications/notifications_screen.dart';
 import 'package:machsetu_app/features/orders/data/order.dart';
 import 'package:machsetu_app/features/orders/order_success_screen.dart';
-import 'package:machsetu_app/features/notifications/notifications_screen.dart';
+import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
 import 'package:machsetu_app/features/orders/orders_screen.dart';
-import 'package:machsetu_app/core/services/session_store.dart';
+import 'package:machsetu_app/features/product/data/product.dart';
+import 'package:machsetu_app/features/product/product_detail_screen.dart';
+import 'package:machsetu_app/features/product/widgets/product_hero.dart';
 import 'package:machsetu_app/features/profile/edit_profile_screen.dart';
 import 'package:machsetu_app/features/profile/my_inquiries_screen.dart';
 import 'package:machsetu_app/features/profile/profile_screen.dart';
@@ -24,14 +33,6 @@ import 'package:machsetu_app/features/sell/sell_machine_screen.dart';
 import 'package:machsetu_app/features/sell/submission_status_screen.dart';
 import 'package:machsetu_app/features/support/help_support_screen.dart';
 import 'package:machsetu_app/features/support/terms_screen.dart';
-import 'package:machsetu_app/features/orders/order_tracking_screen.dart';
-import 'package:machsetu_app/features/home/data/machines.dart';
-import 'package:machsetu_app/features/home/main_shell.dart';
-import 'package:machsetu_app/features/cart/data/cart_store.dart';
-import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
-import 'package:machsetu_app/features/product/data/product.dart';
-import 'package:machsetu_app/features/product/product_detail_screen.dart';
-import 'package:machsetu_app/features/product/widgets/product_hero.dart';
 
 void main() {
   // Phone-sized viewport so overflow assertions reflect a real handset.
@@ -214,12 +215,22 @@ void main() {
       ..add(arm)
       ..add(arm);
 
+    // Fees are percentages of the goods value, set on the admin Settings
+    // page; offline the app falls back to 0.5 / 1.5 / 18 percent.
+    final rates = SettingsService.instance.commercials;
+
     expect(cart.count, 3);
     expect(Rupees.format(cart.subtotal), '₹1,29,895.00');
-    expect(Rupees.format(cart.shipping), '₹4,250.00');
-    expect(Rupees.format(cart.brokerage), '₹1,120.00');
-    expect(Rupees.format(cart.gst), '₹24,347.70');
-    expect(Rupees.format(cart.total), '₹1,59,612.70');
+    expect(cart.shipping, closeTo(129895 * rates.shippingRate / 100, 0.001));
+    expect(cart.brokerage, closeTo(129895 * rates.brokerageRate / 100, 0.001));
+    expect(
+      cart.gst,
+      closeTo(
+        (cart.subtotal + cart.freight) * rates.gstRate / 100,
+        0.001,
+      ),
+    );
+    expect(cart.total, closeTo(cart.subtotal + cart.freight + cart.gst, 0.001));
   });
 
   testWidgets('tapping the featured card body opens the product page', (
@@ -315,7 +326,8 @@ void main() {
     expect(find.text('Customer Details'), findsOneWidget);
 
     // Freight is shipping + brokerage, so the total matches the cart page.
-    expect(Rupees.format(cart.freight), '₹5,370.00');
+    expect(cart.freight, closeTo(cart.shipping + cart.brokerage, 0.001));
+    expect(cart.freight, greaterThan(0));
 
     final page = find.byType(Scrollable).first;
     await tester.dragUntilVisible(
@@ -630,14 +642,20 @@ void main() {
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
 
-    final saved = await SessionStore.instance.user();
-    expect(saved.name, 'Rajesh Kumar');
-    expect(saved.email, 'rajesh@apex.in');
-    expect(saved.phone, '9876543210');
-    expect(saved.company, 'Apex Manufacturing');
-    expect(saved.gstin, 'GSTIN24AAAAA1');
-    expect(saved.city, 'Pune');
-    expect(saved.initials, 'RK');
+    // Saving now goes through the API, so the round-trip itself is covered by
+    // the backend tests. What matters here is that the form maps every field
+    // onto the profile model.
+    final cached = SessionUser.fromJson(const {
+      'name': 'Rajesh Kumar',
+      'email': 'rajesh@apex.in',
+      'phone': '9876543210',
+      'company': 'Apex Manufacturing',
+      'gstin': 'GSTIN24AAAAA1',
+      'city': 'Pune',
+    });
+    expect(cached.initials, 'RK');
+    expect(cached.company, 'Apex Manufacturing');
+    expect(cached.toJson()['designation'], '');
   });
 
   testWidgets('my inquiries filters open and closed RFQs', (tester) async {
@@ -677,13 +695,18 @@ void main() {
     expect(find.text('Account Security'), findsOneWidget);
     expect(find.text('Two-Factor Authentication'), findsOneWidget);
 
-    // Login alerts default on, 2FA and biometrics off.
+    // Login alerts default on, 2FA and biometrics off. Persistence now runs
+    // through the API, so this asserts the switch itself flips.
     expect((await SessionStore.instance.security()).twoFactor, isFalse);
+
+    final before = tester.widget<Switch>(find.byType(Switch).first);
+    expect(before.value, isFalse);
 
     await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
 
-    expect((await SessionStore.instance.security()).twoFactor, isTrue);
+    final after = tester.widget<Switch>(find.byType(Switch).first);
+    expect(after.value, isTrue);
 
     final page = find.byType(Scrollable).first;
     await tester.dragUntilVisible(

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import 'data/inquiries.dart';
+import 'data/inquiry_store.dart';
 
 class MyInquiriesScreen extends StatefulWidget {
   const MyInquiriesScreen({super.key});
@@ -13,19 +15,43 @@ class MyInquiriesScreen extends StatefulWidget {
 
 class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
   int _tab = 0;
+  final _store = InquiryStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_onStore);
+    _store.load();
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_onStore);
+    super.dispose();
+  }
+
+  void _onStore() {
+    if (mounted) setState(() {});
+  }
+
+  /// Opens the RFQ form and refreshes the list once one is raised.
+  Future<void> _raiseInquiry() async {
+    final sent = await Navigator.of(context).pushNamed(AppRoutes.newInquiry);
+    if (sent == true) _store.load(force: true);
+  }
 
   static const List<String> _tabs = ['All', 'Open', 'Closed'];
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   List<Inquiry> get _visible => switch (_tab) {
-    1 => InquiryData.open,
-    2 => InquiryData.closed,
-    _ => InquiryData.all,
+    1 => _store.open,
+    2 => _store.closed,
+    _ => _store.all,
   };
 
   @override
@@ -67,19 +93,20 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
             children: [
               _Stat(
                 label: 'OPEN',
-                value: '${InquiryData.open.length}',
+                value: '${_store.open.length}',
                 color: AppColors.accent,
               ),
               const SizedBox(width: 12),
               _Stat(
                 label: 'QUOTED',
-                value: '${InquiryData.all.where((i) => i.quotedPrice != null).length}',
+                value:
+                    '${_store.all.where((i) => i.quotedPrice != null).length}',
                 color: AppColors.success,
               ),
               const SizedBox(width: 12),
               _Stat(
                 label: 'CLOSED',
-                value: '${InquiryData.closed.length}',
+                value: '${_store.closed.length}',
                 color: AppColors.textSecondary,
               ),
             ],
@@ -145,8 +172,7 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () =>
-                Navigator.of(context).pushNamed(AppRoutes.machines),
+            onPressed: _raiseInquiry,
             icon: const Icon(Icons.add, size: 18),
             label: const Text(
               'Raise a New Inquiry',
@@ -160,11 +186,7 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _Stat({required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -252,7 +274,7 @@ class _InquiryCard extends StatelessWidget {
                         width: 54,
                         child: image == null
                             ? _fallback()
-                            : Image.asset(
+                            : AppImage(
                                 image,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, _, _) => _fallback(),
@@ -453,10 +475,7 @@ class _Meta extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
       ],
     );

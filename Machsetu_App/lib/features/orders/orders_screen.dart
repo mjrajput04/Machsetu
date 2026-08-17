@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/order.dart';
 
@@ -18,9 +21,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   OrderStatus? _filter;
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   List<Order> _apply(List<Order> orders) {
@@ -42,42 +45,42 @@ class _OrdersScreenState extends State<OrdersScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Filter by Status',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.navy,
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Filter by Status',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.navy,
+                    ),
                   ),
                 ),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.clear_all, size: 20),
-              title: const Text('All statuses'),
-              selected: _filter == null,
-              selectedColor: AppColors.accent,
-              onTap: () => Navigator.of(sheetContext).pop('all'),
-            ),
-            for (final status in OrderStatus.values)
               ListTile(
-                leading: Container(
-                  height: 12,
-                  width: 12,
-                  decoration: BoxDecoration(
-                    color: status.foreground,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                title: Text(status.label),
-                selected: _filter == status,
+                leading: const Icon(Icons.clear_all, size: 20),
+                title: const Text('All statuses'),
+                selected: _filter == null,
                 selectedColor: AppColors.accent,
-                onTap: () => Navigator.of(sheetContext).pop(status),
+                onTap: () => Navigator.of(sheetContext).pop('all'),
               ),
+              for (final status in OrderStatus.values)
+                ListTile(
+                  leading: Container(
+                    height: 12,
+                    width: 12,
+                    decoration: BoxDecoration(
+                      color: status.foreground,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  title: Text(status.label),
+                  selected: _filter == status,
+                  selectedColor: AppColors.accent,
+                  onTap: () => Navigator.of(sheetContext).pop(status),
+                ),
               const SizedBox(height: 8),
             ],
           ),
@@ -86,7 +89,28 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
 
     if (selected == null) return;
-    setState(() => _filter = selected == 'all' ? null : selected as OrderStatus);
+    setState(
+      () => _filter = selected == 'all' ? null : selected as OrderStatus,
+    );
+  }
+
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    OrderStore.instance.loadMine(force: true);
+    // Keeps the pipeline in step with the sourcing desk while the tab is open.
+    _poll = Timer.periodic(
+      const Duration(seconds: 25),
+      (_) => OrderStore.instance.loadMine(force: true),
+    );
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   @override
@@ -171,10 +195,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   for (final order in active) ...[
                     _OrderCard(
                       order: order,
-                      onPrimary: () => Navigator.of(context).pushNamed(
-                        AppRoutes.orderTracking,
-                        arguments: order,
-                      ),
+                      onPrimary: () => Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.orderTracking, arguments: order),
                     ),
                     const SizedBox(height: 14),
                   ],
@@ -276,7 +299,9 @@ class _FilterButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: active ? AppColors.accentDark : AppColors.textSecondary,
+                  color: active
+                      ? AppColors.accentDark
+                      : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -348,8 +373,7 @@ class _OrderCard extends StatelessWidget {
                           fontSize: 17,
                           height: 1.3,
                           fontWeight: FontWeight.w700,
-                          color: closed &&
-                                  order.status == OrderStatus.delivered
+                          color: closed && order.status == OrderStatus.delivered
                               ? AppColors.textPrimary
                               : AppColors.brandBlue,
                         ),
@@ -376,10 +400,7 @@ class _OrderCard extends StatelessWidget {
                         label: order.note!,
                       )
                     else
-                      _Meta(
-                        icon: Icons.place_outlined,
-                        label: order.location,
-                      ),
+                      _Meta(icon: Icons.place_outlined, label: order.location),
                   ],
                 ),
                 if (!closed) ...[
@@ -404,7 +425,9 @@ class _OrderCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: closed ? AppColors.textSecondary : AppColors.accent,
+                      color: closed
+                          ? AppColors.textSecondary
+                          : AppColors.accent,
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -439,7 +462,7 @@ class _Thumbnail extends StatelessWidget {
         width: 58,
         child: image == null
             ? _fallback()
-            : Image.asset(
+            : AppImage(
                 image,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => _fallback(),

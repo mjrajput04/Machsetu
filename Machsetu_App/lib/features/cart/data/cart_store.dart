@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/services/settings_service.dart';
 import '../../product/data/product.dart';
 
 class CartItem {
@@ -39,20 +40,35 @@ class CartStore extends ChangeNotifier {
     (sum, item) => sum + (item.product.amount * item.quantity),
   );
 
-  /// Flat freight estimate, waived on an empty cart.
-  double get shipping => _items.isEmpty ? 0 : 4250;
+  /// Fee percentages set on the admin panel's Settings page.
+  Commercials get _rates => SettingsService.instance.commercials;
 
-  double get brokerage => _items.isEmpty ? 0 : 1120;
+  /// Freight estimate as a share of the goods value, waived on an empty cart.
+  double get shipping =>
+      _items.isEmpty ? 0 : subtotal * _rates.shippingRate / 100;
+
+  double get brokerage =>
+      _items.isEmpty ? 0 : subtotal * _rates.brokerageRate / 100;
 
   /// Shipping and brokerage combined — checkout shows them as one line, so
   /// this keeps its total identical to the cart's.
   double get freight => shipping + brokerage;
 
-  static const double gstRate = 0.18;
+  /// GST as a fraction, e.g. 0.18. Drives the "GST (18%)" labels too.
+  double get gstRate => _rates.gstRate / 100;
 
   /// GST applies to the goods plus the service charges, matching the quote
   /// sheet buyers receive.
   double get gst => (subtotal + shipping + brokerage) * gstRate;
+
+  /// Rate as it appears in a label, without a trailing ".0".
+  String get gstLabel {
+    final rate = _rates.gstRate;
+    final text = rate == rate.roundToDouble()
+        ? rate.toStringAsFixed(0)
+        : rate.toStringAsFixed(1);
+    return '$text%';
+  }
 
   double get total => subtotal + shipping + brokerage + gst;
 

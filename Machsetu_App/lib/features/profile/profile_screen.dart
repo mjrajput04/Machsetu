@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/profile_data.dart';
 
@@ -26,15 +27,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
-    final user = await SessionStore.instance.user();
+    // Pulled fresh so anything the sourcing desk changed shows up here too.
+    final user = await SessionStore.instance.user(refresh: true);
     if (!mounted) return;
     setState(() => _user = user);
   }
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   /// Confirms before dropping the session — logging out is easy to hit by
@@ -43,9 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
         contentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
         title: Row(
@@ -88,7 +88,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
         actions: [
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.textSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+            ),
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancel'),
           ),
@@ -131,6 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _Header(
             name: name,
             initials: initials,
+            photo: _user?.avatar ?? '',
             role: (_user?.role.isNotEmpty ?? false)
                 ? _user!.role
                 : ProfileData.role,
@@ -153,7 +156,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.sell_outlined,
                   title: 'Sell Your Machine',
-                  detail: 'Your live, pending and sold listings — add a new '
+                  detail:
+                      'Your live, pending and sold listings — add a new '
                       'machine from there',
                   highlight: true,
                   onTap: () =>
@@ -162,11 +166,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.badge_outlined,
                   title: 'Edit Profile',
-                  detail: 'Update personal details, company info, and contact '
+                  detail:
+                      'Update personal details, company info, and contact '
                       'preferences',
                   onTap: () async {
-                    final saved = await Navigator.of(context)
-                        .pushNamed<Object?>(AppRoutes.editProfile);
+                    final saved = await Navigator.of(
+                      context,
+                    ).pushNamed<Object?>(AppRoutes.editProfile);
                     // Pull the freshly saved details back into the header.
                     if (saved == true) await _load();
                   },
@@ -174,7 +180,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.description_outlined,
                   title: 'My Inquiries',
-                  detail: 'Track RFQs, active quotes, and technical '
+                  detail:
+                      'Track RFQs, active quotes, and technical '
                       'specifications',
                   onTap: () =>
                       Navigator.of(context).pushNamed(AppRoutes.myInquiries),
@@ -189,7 +196,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.help_outline,
                   title: 'Help & Support',
-                  detail: 'Knowledge base, technical support tickets, and '
+                  detail:
+                      'Knowledge base, technical support tickets, and '
                       'live chat',
                   onTap: () =>
                       Navigator.of(context).pushNamed(AppRoutes.helpSupport),
@@ -197,7 +205,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.gavel_outlined,
                   title: 'Terms & Conditions',
-                  detail: 'Terms of trade, privacy policy and escrow '
+                  detail:
+                      'Terms of trade, privacy policy and escrow '
                       'agreement',
                   onTap: () => Navigator.of(context).pushNamed(AppRoutes.terms),
                 ),
@@ -256,12 +265,16 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.name,
     required this.initials,
+    required this.photo,
     required this.role,
     required this.company,
   });
 
   final String name;
   final String initials;
+
+  /// Uploaded profile photo; falls back to the monogram when empty.
+  final String photo;
   final String role;
   final String company;
 
@@ -285,14 +298,17 @@ class _Header extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
-            initials,
-            style: const TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
+          clipBehavior: Clip.antiAlias,
+          child: photo.isNotEmpty
+              ? AppImage(photo, fit: BoxFit.cover, height: 92, width: 92)
+              : Text(
+                  initials,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
         ),
         const SizedBox(height: 14),
         Text(
@@ -614,9 +630,8 @@ class _UpgradeBanner extends StatelessWidget {
             Image.asset(
               'assets/images/machines/workshop_banner.jpg',
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const ColoredBox(
-                color: AppColors.navy,
-              ),
+              errorBuilder: (_, _, _) =>
+                  const ColoredBox(color: AppColors.navy),
             ),
             DecoratedBox(
               decoration: BoxDecoration(

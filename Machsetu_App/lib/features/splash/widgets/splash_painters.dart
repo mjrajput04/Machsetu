@@ -53,8 +53,7 @@ class AuroraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant AuroraPainter oldDelegate) =>
-      oldDelegate.t != t;
+  bool shouldRepaint(covariant AuroraPainter oldDelegate) => oldDelegate.t != t;
 }
 
 /// Technical grid that drifts upward and fades toward the horizon.
@@ -100,11 +99,7 @@ class DriftGridPainter extends CustomPainter {
 /// The badge behind the logo: a hexagon and rings that draw themselves in,
 /// then keep breathing and rotating.
 class MarkPainter extends CustomPainter {
-  MarkPainter({
-    required this.draw,
-    required this.spin,
-    required this.pulse,
-  });
+  MarkPainter({required this.draw, required this.spin, required this.pulse});
 
   /// 0..1 stroke-drawing progress for the intro.
   final double draw;
@@ -133,10 +128,20 @@ class MarkPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: centre, radius: radius)),
     );
 
-    _drawPath(canvas, _hexagon(centre, radius * 0.94), draw, 1.4,
-        AppColors.steelLight.withValues(alpha: 0.55));
-    _drawPath(canvas, _hexagon(centre, radius * 0.72), draw, 1,
-        Colors.white.withValues(alpha: 0.10));
+    _drawPath(
+      canvas,
+      _hexagon(centre, radius * 0.94),
+      draw,
+      1.4,
+      AppColors.steelLight.withValues(alpha: 0.55),
+    );
+    _drawPath(
+      canvas,
+      _hexagon(centre, radius * 0.72),
+      draw,
+      1,
+      Colors.white.withValues(alpha: 0.10),
+    );
     _drawPath(
       canvas,
       Path()..addOval(Rect.fromCircle(center: centre, radius: radius * 0.60)),
@@ -181,7 +186,9 @@ class MarkPainter extends CustomPainter {
     for (var i = 0; i < 6; i++) {
       final angle = (math.pi / 3) * i - math.pi / 2;
       final point = centre + Offset(math.cos(angle), math.sin(angle)) * radius;
-      i == 0 ? path.moveTo(point.dx, point.dy) : path.lineTo(point.dx, point.dy);
+      i == 0
+          ? path.moveTo(point.dx, point.dy)
+          : path.lineTo(point.dx, point.dy);
     }
     return path..close();
   }
@@ -203,10 +210,7 @@ class MarkPainter extends CustomPainter {
       ..color = color;
 
     for (final metric in path.computeMetrics()) {
-      canvas.drawPath(
-        metric.extractPath(0, metric.length * progress),
-        paint,
-      );
+      canvas.drawPath(metric.extractPath(0, metric.length * progress), paint);
     }
   }
 

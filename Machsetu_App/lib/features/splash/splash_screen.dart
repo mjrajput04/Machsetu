@@ -51,21 +51,23 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _backdrop = _curve(0.00, 0.30);
   late final Animation<double> _markDraw = _curve(0.05, 0.50, Curves.easeInOut);
   late final Animation<double> _logoFade = _curve(0.18, 0.44);
-  late final Animation<double> _logoScale = Tween<double>(
-    begin: 0.55,
-    end: 1,
-  ).animate(
-    CurvedAnimation(
-      parent: _intro,
-      curve: const Interval(0.18, 0.56, curve: Curves.easeOutBack),
-    ),
-  );
+  late final Animation<double> _logoScale = Tween<double>(begin: 0.55, end: 1)
+      .animate(
+        CurvedAnimation(
+          parent: _intro,
+          curve: const Interval(0.18, 0.56, curve: Curves.easeOutBack),
+        ),
+      );
   late final Animation<double> _tagline = _curve(0.66, 0.82);
   late final Animation<double> _rule = _curve(0.70, 0.88, Curves.easeOutCubic);
   late final Animation<double> _loader = _curve(0.60, 1.00, Curves.easeInOut);
   late final Animation<double> _hud = _curve(0.78, 1.00);
 
-  Animation<double> _curve(double begin, double end, [Curve curve = Curves.easeOut]) {
+  Animation<double> _curve(
+    double begin,
+    double end, [
+    Curve curve = Curves.easeOut,
+  ]) {
     return CurvedAnimation(
       parent: _intro,
       curve: Interval(begin, end, curve: curve),
@@ -80,8 +82,11 @@ class _SplashScreenState extends State<SplashScreen>
     final begin = start + slot * index;
     return CurvedAnimation(
       parent: _intro,
-      curve: Interval(begin, (begin + slot * 2.6).clamp(0.0, 1.0),
-          curve: Curves.easeOutCubic),
+      curve: Interval(
+        begin,
+        (begin + slot * 2.6).clamp(0.0, 1.0),
+        curve: Curves.easeOutCubic,
+      ),
     );
   }
 
@@ -104,9 +109,9 @@ class _SplashScreenState extends State<SplashScreen>
     // fades in over the same gradient, so the two motions overlap instead of
     // leaving a gap between them.
     _exit.forward();
-    Navigator.of(context).pushReplacementNamed(
-      loggedIn ? AppRoutes.home : AppRoutes.login,
-    );
+    Navigator.of(
+      context,
+    ).pushReplacementNamed(loggedIn ? AppRoutes.home : AppRoutes.login);
   }
 
   @override
@@ -213,8 +218,8 @@ class _SplashScreenState extends State<SplashScreen>
                   // Three dots orbiting the badge.
                   for (var i = 0; i < 3; i++)
                     Transform.rotate(
-                      angle: _ambient.value * 2 * math.pi +
-                          i * (2 * math.pi / 3),
+                      angle:
+                          _ambient.value * 2 * math.pi + i * (2 * math.pi / 3),
                       child: Transform.translate(
                         offset: const Offset(0, -122),
                         child: Opacity(
@@ -303,8 +308,7 @@ class _SplashScreenState extends State<SplashScreen>
   /// MACHSETU, one letter at a time, under a brushed-metal sweep.
   Widget _animatedWordmark() {
     return ShaderMask(
-      shaderCallback: (bounds) =>
-          AppColors.steelGradient.createShader(bounds),
+      shaderCallback: (bounds) => AppColors.steelGradient.createShader(bounds),
       blendMode: BlendMode.srcIn,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -368,10 +372,7 @@ class _SplashScreenState extends State<SplashScreen>
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
                           gradient: const LinearGradient(
-                            colors: [
-                              AppColors.accentGlow,
-                              AppColors.accent,
-                            ],
+                            colors: [AppColors.accentGlow, AppColors.accent],
                           ),
                           boxShadow: [
                             BoxShadow(

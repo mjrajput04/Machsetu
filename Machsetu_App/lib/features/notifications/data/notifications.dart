@@ -41,7 +41,8 @@ class NotificationData {
   static const List<AppNotification> today = [
     AppNotification(
       title: 'Inquiry Approved',
-      body: 'Your RFQ for the 5-Axis Vertical Machining Center '
+      body:
+          'Your RFQ for the 5-Axis Vertical Machining Center '
           '(Ref: CNC-8823) has been approved by the vendor.',
       stamp: '10:45 AM',
       icon: Icons.task_alt,
@@ -52,7 +53,8 @@ class NotificationData {
     ),
     AppNotification(
       title: 'Price Alert: CNC Tools — Pune Hub',
-      body: 'A 15% price drop detected on bulk packages of ISO-standard '
+      body:
+          'A 15% price drop detected on bulk packages of ISO-standard '
           'milling inserts from authorized distributors.',
       stamp: '09:12 AM',
       icon: Icons.trending_down,
@@ -60,7 +62,8 @@ class NotificationData {
     ),
     AppNotification(
       title: 'New Machine Listing',
-      body: 'New Arrivals: Haas VF-2SS Super-Speed Vertical Machining Center '
+      body:
+          'New Arrivals: Haas VF-2SS Super-Speed Vertical Machining Center '
           '(2022 Model) just added to the marketplace.',
       stamp: '07:30 AM',
       icon: Icons.precision_manufacturing_outlined,
@@ -73,7 +76,8 @@ class NotificationData {
   static const List<AppNotification> earlier = [
     AppNotification(
       title: 'Shipment Dispatched from Chennai Warehouse',
-      body: 'Order #CNC-2 (Industrial Lubricants) has been picked up by the '
+      body:
+          'Order #CNC-2 (Industrial Lubricants) has been picked up by the '
           'freight carrier.',
       stamp: 'Yesterday',
       icon: Icons.local_shipping_outlined,
@@ -81,7 +85,8 @@ class NotificationData {
     ),
     AppNotification(
       title: 'Stock Alert: Low Inventory',
-      body: 'Hydraulic fluid level in Warehouse A is below threshold '
+      body:
+          'Hydraulic fluid level in Warehouse A is below threshold '
           '(12% remaining).',
       stamp: '2 days ago',
       icon: Icons.inventory_2_outlined,

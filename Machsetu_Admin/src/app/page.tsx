@@ -1,14 +1,16 @@
+"use client";
+
 import Link from "next/link";
-import {
-  ACTIVITY,
-  CATEGORIES,
-  INQUIRIES,
-  ORDERS,
-  PRODUCTS,
-  REVENUE_TREND,
-  SELL_REQUESTS,
-  USERS,
-} from "@/lib/data";
+import { useMemo } from "react";
+
+import { useApi } from "@/lib/api";
+import type {
+  AdminUser,
+  Inquiry,
+  Order,
+  Product,
+  SellRequest,
+} from "@/lib/types";
 import { relativeDate, rupees, rupeesShort } from "@/lib/format";
 import {
   Avatar,
@@ -25,6 +27,42 @@ import {
 } from "@/components/ui";
 
 export default function DashboardPage() {
+  // The console reads straight from the database, so the desk always sees the
+  // same numbers the mobile app does.
+  const catalogue = useApi<{ products: Product[] }>("/api/admin/products");
+  const submissions = useApi<{ requests: SellRequest[] }>(
+    "/api/admin/requests",
+  );
+  const rfqs = useApi<{ inquiries: Inquiry[] }>("/api/admin/inquiries");
+  const ledger = useApi<{ orders: Order[] }>("/api/admin/orders");
+  const accounts = useApi<{ users: AdminUser[] }>("/api/admin/users");
+  const summary = useApi<{
+    activity: { kind: string; title: string; detail: string; at: string }[];
+    revenue: { label: string; value: number }[];
+  }>("/api/admin/summary");
+  const config = useApi<{ categories: string[] }>("/api/settings");
+
+  const PRODUCTS = useMemo(
+    () => catalogue.data?.products ?? [],
+    [catalogue.data],
+  );
+  const SELL_REQUESTS = useMemo(
+    () => submissions.data?.requests ?? [],
+    [submissions.data],
+  );
+  const INQUIRIES = useMemo(() => rfqs.data?.inquiries ?? [], [rfqs.data]);
+  const ORDERS = useMemo(() => ledger.data?.orders ?? [], [ledger.data]);
+  const USERS = useMemo(() => accounts.data?.users ?? [], [accounts.data]);
+  const ACTIVITY = useMemo(() => summary.data?.activity ?? [], [summary.data]);
+  const REVENUE_TREND = useMemo(
+    () => summary.data?.revenue ?? [],
+    [summary.data],
+  );
+  const CATEGORIES = useMemo(
+    () => config.data?.categories ?? [],
+    [config.data],
+  );
+
   const liveListings = PRODUCTS.filter((p) => p.status === "Live").length;
   const pendingRequests = SELL_REQUESTS.filter(
     (r) => r.status === "Awaiting Review",
@@ -69,7 +107,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const peak = Math.max(...REVENUE_TREND.map((m) => m.value));
+  const peak = Math.max(1, ...REVENUE_TREND.map((m) => m.value));
   const recentOrders = ORDERS.slice(0, 4);
   const queue = SELL_REQUESTS.filter(
     (r) => r.status === "Awaiting Review",
@@ -132,7 +170,7 @@ export default function DashboardPage() {
               const latest = i === REVENUE_TREND.length - 1;
               return (
                 <div
-                  key={m.month}
+                  key={`${m.label}-${i}`}
                   className="group flex flex-1 flex-col items-center gap-2"
                 >
                   <div className="relative flex w-full flex-1 items-end">
@@ -150,7 +188,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <span className="text-[10px] font-medium text-faint">
-                    {m.month}
+                    {m.label}
                   </span>
                 </div>
               );
@@ -166,7 +204,10 @@ export default function DashboardPage() {
           <ul className="space-y-3.5">
             {CATEGORIES.map((category) => {
               const items = PRODUCTS.filter((p) => p.category === category);
-              const share = Math.round((items.length / PRODUCTS.length) * 100);
+              const share =
+                PRODUCTS.length === 0
+                  ? 0
+                  : Math.round((items.length / PRODUCTS.length) * 100);
               return (
                 <li key={category}>
                   <div className="mb-1.5 flex items-baseline justify-between text-sm">
@@ -239,23 +280,29 @@ export default function DashboardPage() {
         <Card>
           <CardHeader title="Activity" subtitle="Last 7 days" />
           <ol className="space-y-4">
-            {ACTIVITY.map((a) => (
-              <li key={a.id} className="flex gap-3">
+            {ACTIVITY.length === 0 && (
+              <li className="text-sm text-muted">
+                {summary.loading
+                  ? "Loading recent activity…"
+                  : "Nothing has happened on the marketplace yet."}
+              </li>
+            )}
+            {ACTIVITY.map((a, index) => (
+              <li key={`${a.title}-${index}`} className="flex gap-3">
                 <span
                   className={cx(
                     "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                    a.tone === "accent" && "bg-accent-500",
-                    a.tone === "navy" && "bg-navy-600",
-                    a.tone === "success" && "bg-emerald-500",
-                    a.tone === "danger" && "bg-rose-500",
+                    a.kind === "order" && "bg-emerald-500",
+                    a.kind === "listing" && "bg-accent-500",
+                    a.kind === "inquiry" && "bg-navy-600",
+                    a.kind === "user" && "bg-sky-500",
                   )}
                 />
                 <div className="min-w-0">
-                  <p className="text-sm leading-snug text-ink">
-                    <span className="font-semibold">{a.actor}</span>{" "}
-                    <span className="text-muted">{a.action}</span>{" "}
-                    <span className="font-semibold">{a.target}</span>
+                  <p className="text-sm leading-snug font-semibold text-ink">
+                    {a.title}
                   </p>
+                  <p className="truncate text-xs text-muted">{a.detail}</p>
                   <p className="mt-0.5 text-xs text-faint">
                     {relativeDate(a.at)}
                   </p>

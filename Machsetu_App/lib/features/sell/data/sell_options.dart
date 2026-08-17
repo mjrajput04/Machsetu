@@ -47,11 +47,7 @@ class SellOptions {
   ];
 
   /// Section 3 — Owner Type.
-  static const List<String> ownerTypes = [
-    '1st Owner',
-    'Dealer',
-    'Reseller',
-  ];
+  static const List<String> ownerTypes = ['1st Owner', 'Dealer', 'Reseller'];
 
   /// Section 5 — Documents Checklist. Doubles as the upload categories, so a
   /// ticked box always means a file is actually attached.

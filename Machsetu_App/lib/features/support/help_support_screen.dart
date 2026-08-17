@@ -1,11 +1,43 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
 
-class HelpSupportScreen extends StatelessWidget {
+class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
 
-  static const List<(String, String)> _faqs = [
+  @override
+  State<HelpSupportScreen> createState() => _HelpSupportScreenState();
+}
+
+class _HelpSupportScreenState extends State<HelpSupportScreen> {
+  final _settings = SettingsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _settings.addListener(_onSettings);
+    _settings.load();
+  }
+
+  @override
+  void dispose() {
+    _settings.removeListener(_onSettings);
+    super.dispose();
+  }
+
+  void _onSettings() {
+    if (mounted) setState(() {});
+  }
+
+  /// Whatever the desk has published, falling back to the bundled copy.
+  List<(String, String)> get _faqs {
+    final published = _settings.support.faqs;
+    if (published.isEmpty) return _bundledFaqs;
+    return [for (final f in published) (f.question, f.answer)];
+  }
+
+  static const List<(String, String)> _bundledFaqs = [
     (
       'How is a machine verified before listing?',
       'Every unit passes a 42-point technical audit covering spindle hours, '
@@ -39,9 +71,9 @@ class HelpSupportScreen extends StatelessWidget {
   ];
 
   void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -92,7 +124,7 @@ class HelpSupportScreen extends StatelessWidget {
                 child: _ContactTile(
                   icon: Icons.call_outlined,
                   label: 'Call Us',
-                  detail: 'Mon–Sat',
+                  detail: _settings.support.phone,
                   onTap: () => _todo(context, 'Call support'),
                 ),
               ),
@@ -101,7 +133,7 @@ class HelpSupportScreen extends StatelessWidget {
                 child: _ContactTile(
                   icon: Icons.mail_outline,
                   label: 'Email',
-                  detail: 'In 24 hrs',
+                  detail: _settings.support.email,
                   onTap: () => _todo(context, 'Email support'),
                 ),
               ),
@@ -133,9 +165,9 @@ class HelpSupportScreen extends StatelessWidget {
                       Theme(
                         // Removes the default expansion tile divider lines so
                         // the card keeps one continuous border.
-                        data: Theme.of(context).copyWith(
-                          dividerColor: Colors.transparent,
-                        ),
+                        data: Theme.of(
+                          context,
+                        ).copyWith(dividerColor: Colors.transparent),
                         child: ExpansionTile(
                           tilePadding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -217,20 +249,29 @@ class HelpSupportScreen extends StatelessWidget {
                     ),
                   ),
                   onPressed: () => _todo(context, 'Support ticket'),
-                  icon: const Icon(Icons.confirmation_number_outlined, size: 18),
+                  icon: const Icon(
+                    Icons.confirmation_number_outlined,
+                    size: 18,
+                  ),
                   label: const Text(
                     'Raise a Ticket',
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 20),
-          const Center(
+          Center(
             child: Text(
-              'Support hours: Mon–Sat, 9:00 AM – 7:00 PM IST',
-              style: TextStyle(fontSize: 11.5, color: AppColors.textMuted),
+              'Support hours: ${_settings.support.hours}',
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: AppColors.textMuted,
+              ),
             ),
           ),
         ],

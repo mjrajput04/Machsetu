@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/cart_store.dart';
 
@@ -10,9 +11,9 @@ class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
   void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -63,9 +64,7 @@ class CartScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 const _AssuranceNote(),
                 const SizedBox(height: 16),
-                _AssistanceNote(
-                  onConnect: () => _todo(context, 'Agent chat'),
-                ),
+                _AssistanceNote(onConnect: () => _todo(context, 'Agent chat')),
               ],
             ],
           );
@@ -109,7 +108,7 @@ class _CartLine extends StatelessWidget {
               width: double.infinity,
               child: image == null
                   ? _fallback(product.icon)
-                  : Image.asset(
+                  : AppImage(
                       image,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => _fallback(product.icon),
@@ -241,7 +240,11 @@ class _CartLine extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(gradient: AppColors.machineGradient),
       child: Center(
-        child: Icon(icon, size: 46, color: AppColors.navy.withValues(alpha: 0.35)),
+        child: Icon(
+          icon,
+          size: 46,
+          color: AppColors.navy.withValues(alpha: 0.35),
+        ),
       ),
     );
   }
@@ -404,9 +407,7 @@ class _Stop extends StatelessWidget {
                 ),
               ),
               if (!isLast)
-                Expanded(
-                  child: Container(width: 1.5, color: AppColors.border),
-                ),
+                Expanded(child: Container(width: 1.5, color: AppColors.border)),
             ],
           ),
           const SizedBox(width: 14),
@@ -497,7 +498,8 @@ class _OrderSummary extends StatelessWidget {
             child: Column(
               children: [
                 _SummaryRow(
-                  label: 'Subtotal (${cart.count} '
+                  label:
+                      'Subtotal (${cart.count} '
                       '${cart.count == 1 ? 'item' : 'items'})',
                   value: Rupees.format(cart.subtotal),
                 ),
@@ -510,7 +512,7 @@ class _OrderSummary extends StatelessWidget {
                   value: Rupees.format(cart.brokerage),
                 ),
                 _SummaryRow(
-                  label: 'GST (18%)',
+                  label: 'GST (${cart.gstLabel})',
                   value: Rupees.format(cart.gst),
                   info: true,
                 ),
@@ -649,7 +651,11 @@ class _AssuranceNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.verified_user_outlined, size: 20, color: AppColors.accent),
+          const Icon(
+            Icons.verified_user_outlined,
+            size: 20,
+            color: AppColors.accent,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/catalogue_service.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import '../product/data/product.dart';
 import 'data/search_results.dart';
@@ -17,6 +19,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _query = TextEditingController(text: SearchData.defaultQuery);
   final _focus = FocusNode();
+  final _catalogue = CatalogueService.instance;
 
   /// Falls back to the design's placeholder until a registered name is stored.
   String _initials = 'JD';
@@ -26,7 +29,13 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     // The results header echoes the query, so rebuild as the user types.
     _query.addListener(() => setState(() {}));
+    _catalogue.addListener(_onCatalogue);
+    _catalogue.load();
     _loadUser();
+  }
+
+  void _onCatalogue() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadUser() async {
@@ -35,17 +44,33 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _initials = user.initials);
   }
 
+  /// Live listings carry the full record; bundled ones keep the demo shape.
+  Product _detailFor(SearchListing listing) {
+    final machine = _catalogue.byTitle(listing.title);
+    if (machine != null) return ProductCatalog.fromMachine(machine);
+    return ProductCatalog.from(
+      title: listing.title,
+      brand: listing.brand,
+      price: listing.price,
+      // Subtitle is "<type> • <year>" — the type is enough here.
+      equipmentType: listing.subtitle.split('•').first.trim(),
+      image: listing.image,
+      icon: listing.icon,
+    );
+  }
+
   @override
   void dispose() {
+    _catalogue.removeListener(_onCatalogue);
     _query.dispose();
     _focus.dispose();
     super.dispose();
   }
 
   void _todo(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label — coming soon')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   void _applyRecent(String term) {
@@ -88,26 +113,14 @@ class _SearchScreenState extends State<SearchScreen> {
             onRecentTap: _applyRecent,
           ),
           const SizedBox(height: 20),
-          _ResultsHeader(
-            query: query,
-            onSortTap: () => _todo('Sort options'),
-          ),
+          _ResultsHeader(query: query, onSortTap: () => _todo('Sort options')),
           const SizedBox(height: 14),
-          for (final listing in SearchData.results) ...[
+          for (final listing in _catalogue.searchResults) ...[
             SearchResultCard(
               listing: listing,
-              onViewDetails: () => Navigator.of(context).pushNamed(
-                AppRoutes.product,
-                arguments: ProductCatalog.from(
-                  title: listing.title,
-                  brand: listing.brand,
-                  price: listing.price,
-                  // Subtitle is "<type> • <year>" — the type is enough here.
-                  equipmentType: listing.subtitle.split('•').first.trim(),
-                  image: listing.image,
-                  icon: listing.icon,
-                ),
-              ),
+              onViewDetails: () => Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.product, arguments: _detailFor(listing)),
             ),
             const SizedBox(height: 16),
           ],
@@ -199,10 +212,7 @@ class _SearchPanel extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: _RecentChip(
-                  label: term,
-                  onTap: () => onRecentTap(term),
-                ),
+                child: _RecentChip(label: term, onTap: () => onRecentTap(term)),
               ),
             ),
         ],
@@ -292,10 +302,7 @@ class _ResultsHeader extends StatelessWidget {
             children: [
               const Text(
                 'Sort by:',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(width: 6),
               const Text(
@@ -389,7 +396,9 @@ class _SearchResultCardState extends State<SearchResultCard> {
                     child: Icon(
                       _saved ? Icons.favorite : Icons.favorite_border,
                       size: 17,
-                      color: _saved ? AppColors.accent : AppColors.textSecondary,
+                      color: _saved
+                          ? AppColors.accent
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -475,7 +484,7 @@ class _ListingPhoto extends StatelessWidget {
       width: double.infinity,
       child: path == null
           ? _fallback()
-          : Image.asset(
+          : AppImage(
               path,
               height: _height,
               width: double.infinity,

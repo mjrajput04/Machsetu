@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/api_client.dart';
+import '../../../core/services/session_store.dart';
 import '../../../core/theme/app_colors.dart';
 
 /// Where a seller's machine sits in the listing pipeline.
@@ -33,12 +35,16 @@ class SellDocument {
     required this.size,
     required this.category,
     required this.uploadedOn,
+    this.url = '',
   });
 
   final String name;
   final String size;
   final String category;
   final String uploadedOn;
+
+  /// Where the uploaded file lives, e.g. /uploads/invoice-abc.pdf.
+  final String url;
 }
 
 /// One row of the section 7 inspection report.
@@ -211,7 +217,8 @@ class SellListing {
   /// Progress trail shown on the listing detail page.
   List<ListingEvent> get timeline {
     final reviewed = state != ListingState.pendingReview;
-    final isLive = state == ListingState.live ||
+    final isLive =
+        state == ListingState.live ||
         state == ListingState.underOffer ||
         state == ListingState.sold;
 
@@ -519,7 +526,10 @@ class MachineDraft {
   }
 }
 
-/// In-memory seller inventory. Replace with the listings API when it exists.
+/// The seller's inventory, backed by the listings API.
+///
+/// Submissions go to the sourcing desk over the network; the local list is
+/// kept in step so My Listings still works while offline.
 class SellStore extends ChangeNotifier {
   SellStore._();
 
@@ -553,9 +563,59 @@ class SellStore extends ChangeNotifier {
         .toList();
   }
 
+  bool _loading = false;
+
+  bool get loading => _loading;
+
+  /// Pulls what this seller has submitted, newest first.
+  Future<void> loadMine() async {
+    final token = await SessionStore.instance.token();
+    if (token == null || _loading) return;
+
+    // Called from initState, so the flag is set without a notification —
+    // rebuilding mid-build would throw.
+    _loading = true;
+
+    final result = await ApiClient.instance.get(
+      '/api/listings/mine',
+      token: token,
+    );
+    if (result.ok) {
+      final raw = result.data['listings'];
+      if (raw is List) {
+        final parsed = raw
+            .whereType<Map<String, dynamic>>()
+            .map(_listingFromJson)
+            .toList();
+        _listings
+          ..clear()
+          ..addAll(parsed);
+      }
+    }
+
+    _loading = false;
+    notifyListeners();
+  }
+
   /// Turns a completed wizard draft into a pending-review listing.
-  SellListing submit(MachineDraft draft) {
-    final reference = 'SN-${_listings.length + 9827346}A';
+  ///
+  /// The draft is sent to the sourcing desk first; if that call fails the
+  /// listing is still shown locally so the seller does not lose their work.
+  Future<SellListing> submit(MachineDraft draft) async {
+    final token = await SessionStore.instance.token();
+    var reference = 'SN-${_listings.length + 9827346}A';
+
+    if (token != null) {
+      final result = await ApiClient.instance.post(
+        '/api/listings',
+        token: token,
+        body: _draftToJson(draft),
+      );
+      if (result.ok) {
+        final sent = result.data['reference'];
+        if (sent is String && sent.isNotEmpty) reference = sent;
+      }
+    }
 
     final listing = SellListing(
       reference: reference,
@@ -628,7 +688,8 @@ class SellStore extends ChangeNotifier {
         submittedOn: 'Oct 12, 2026',
         workingHours: '4,200',
         serialNumber: 'SN-9827346A',
-        description: 'Excellent working condition. Spindle replaced in 2024. '
+        description:
+            'Excellent working condition. Spindle replaced in 2024. '
             'Regular maintenance logged. Minor cosmetic scratches on the '
             'front door panel.',
         images: const [
@@ -690,9 +751,11 @@ class SellStore extends ChangeNotifier {
         workingStatus: 'Running',
         maintenanceStatus: 'Regular',
         lastServiceDate: '18 Aug 2026',
-        accessoriesIncluded: 'Tool holders (20), coolant pump, chip auger, '
+        accessoriesIncluded:
+            'Tool holders (20), coolant pump, chip auger, '
             'operator manual, levelling pads',
-        additionalRemarks: 'Machine is under power and can be demonstrated '
+        additionalRemarks:
+            'Machine is under power and can be demonstrated '
             'under load at the seller site.',
         commercial: const CommercialInfo(
           negotiable: true,
@@ -727,7 +790,8 @@ class SellStore extends ChangeNotifier {
         inspection: const InspectionReport(
           inspectorName: 'R. Deshmukh',
           inspectedOn: '13 Oct 2026',
-          remarks: 'Machine holds tolerance within spec. Minor cosmetic wear '
+          remarks:
+              'Machine holds tolerance within spec. Minor cosmetic wear '
               'on the front door. Recommended for listing without reservation.',
           points: [
             InspectionPoint(point: 'Machine Accuracy', rating: 'Excellent'),
@@ -770,7 +834,8 @@ class SellStore extends ChangeNotifier {
         submittedOn: 'Submitted 2 hrs ago',
         workingHours: '11,800',
         serialNumber: 'SN-7741220B',
-        description: 'Twin-spindle multi-tasking centre with milling turret. '
+        description:
+            'Twin-spindle multi-tasking centre with milling turret. '
             'Under AMC until 2027.',
         images: const ['$_photos/okuma_genos.jpg'],
         views: 0,
@@ -800,13 +865,210 @@ class SellStore extends ChangeNotifier {
         description: 'Sold to a verified buyer through MachSetu escrow.',
         images: const ['$_photos/doosan_lynx.jpg'],
         views: 318,
-        specs: const [
-          ('Chuck Size', '10"'),
-          ('Max Turning Length', '640 mm'),
-        ],
+        specs: const [('Chuck Size', '10"'), ('Max Turning Length', '640 mm')],
         features: const ['Y-Axis', 'Sub Spindle'],
       ),
     ]);
     notifyListeners();
   }
+}
+
+/* ------------------------------------------------------------- mapping -- */
+
+String _text(dynamic value) => value == null ? '' : value.toString();
+
+Map<String, dynamic> _map(dynamic value) =>
+    value is Map<String, dynamic> ? value : const {};
+
+List<String> _strings(dynamic value) =>
+    value is List ? value.map(_text).where((v) => v.isNotEmpty).toList() : [];
+
+/// Flattens a wizard draft into the payload the listings API expects.
+Map<String, dynamic> _draftToJson(MachineDraft draft) => {
+  'sellerName': draft.sellerName,
+  'companyName': draft.companyName,
+  'mobile': draft.mobile,
+  'whatsapp': draft.whatsapp,
+  'email': draft.email,
+  'gstNumber': draft.gstNumber,
+  'panNumber': draft.panNumber,
+  'address': draft.address,
+  'city': draft.city,
+  'state': draft.state,
+  'pincode': draft.pincode,
+  'categories': draft.categories.toList(),
+  'category': draft.category,
+  'categoryOther': draft.categoryOther,
+  'machineType': draft.machineType,
+  'brand': draft.brand,
+  'model': draft.model,
+  'year': draft.year,
+  'installationYear': draft.installationYear,
+  'countryOfOrigin': draft.countryOfOrigin,
+  'controller': draft.controller,
+  'numberOfAxis': draft.numberOfAxis,
+  'machineCapacity': draft.machineCapacity,
+  'powerRequirement': draft.powerRequirement,
+  'maxSpindleSpeed': draft.maxSpindleSpeed,
+  'weight': draft.weight,
+  'location': draft.location,
+  'workingHours': draft.workingHours,
+  'workingStatus': draft.workingStatus,
+  'condition': draft.condition,
+  'maintenanceStatus': draft.maintenanceStatus,
+  'lastServiceDate': draft.lastServiceDate,
+  'accessoriesIncluded': draft.accessoriesIncluded,
+  'serialNumber': draft.serialNumber,
+  'description': draft.description,
+  'price': draft.price,
+  'negotiable': draft.negotiable,
+  'gstAvailable': draft.gstAvailable,
+  'taxInvoiceAvailable': draft.taxInvoiceAvailable,
+  'financePending': draft.financePending,
+  'deliveryAvailable': draft.deliveryAvailable,
+  'loadingAvailable': draft.loadingAvailable,
+  'ownerType': draft.ownerType,
+  'additionalRemarks': draft.additionalRemarks,
+  'tableSize': draft.tableSize,
+  'lubricationSystem': draft.lubricationSystem,
+  'electricalPanelCondition': draft.electricalPanelCondition,
+  'toolMagazineCapacity': draft.toolMagazineCapacity,
+  'servoMotors': draft.servoMotors,
+  'toolChangerType': draft.toolChangerType,
+  'ballScrewCondition': draft.ballScrewCondition,
+  'coolantSystem': draft.coolantSystem,
+  'guideways': draft.guideways,
+  'hydraulicSystem': draft.hydraulicSystem,
+  'otherSpecifications': draft.otherSpecifications,
+  'images': draft.images,
+  'requiredPhotos': draft.requiredPhotos.toList(),
+  'documents': [
+    for (final doc in draft.documents)
+      {
+        'name': doc.name,
+        'size': doc.size,
+        'category': doc.category,
+        'uploadedOn': doc.uploadedOn,
+        'url': doc.url,
+      },
+  ],
+};
+
+/// Where the desk has taken a submission, in the app's own vocabulary.
+ListingState _stateFrom(String value) => switch (value) {
+  'Live' => ListingState.live,
+  'Under Offer' => ListingState.underOffer,
+  'Sold' => ListingState.sold,
+  _ => ListingState.pendingReview,
+};
+
+/// Indian lakh/crore grouping, matching the wizard's own price formatting.
+String _price(dynamic value) {
+  final digits = _text(value).replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return 'Price on request';
+  if (digits.length <= 3) return '₹$digits';
+
+  final last3 = digits.substring(digits.length - 3);
+  var rest = digits.substring(0, digits.length - 3);
+  final groups = <String>[];
+  while (rest.length > 2) {
+    groups.insert(0, rest.substring(rest.length - 2));
+    rest = rest.substring(0, rest.length - 2);
+  }
+  if (rest.isNotEmpty) groups.insert(0, rest);
+  return '₹${groups.join(',')},$last3';
+}
+
+SellListing _listingFromJson(Map<String, dynamic> json) {
+  final seller = _map(json['sellerInfo']);
+  final details = _map(json['details']);
+  final specs = _map(json['specs']);
+  final commercial = _map(json['commercial']);
+  final documents = json['documents'];
+
+  bool? tri(dynamic value) => value is bool ? value : null;
+
+  return SellListing(
+    reference: _text(json['id']),
+    title: _text(json['machine']),
+    subtitle: _text(details['machineType']),
+    brand: _text(json['brand']),
+    model: _text(json['model']),
+    year: _text(json['year']),
+    category: _text(json['category']),
+    condition: _text(json['condition']),
+    price: _price(json['askingPrice']),
+    location: _text(json['city']),
+    state: _stateFrom(_text(json['state'])),
+    submittedOn: _text(json['submittedOn']),
+    workingHours: _text(json['hours']),
+    serialNumber: _text(details['serialNumber']),
+    description: _text(json['description']),
+    images: _strings(json['images']),
+    documents: [
+      for (final doc in (documents is List ? documents : const []))
+        if (doc is Map<String, dynamic>)
+          SellDocument(
+            name: _text(doc['name']),
+            size: _text(doc['size']),
+            category: _text(doc['category']),
+            uploadedOn: _text(doc['uploadedOn']),
+            url: _text(doc['url']),
+          ),
+    ],
+    views: json['views'] is int ? json['views'] as int : 0,
+    activeInquiries: json['activeInquiries'] is int
+        ? json['activeInquiries'] as int
+        : 0,
+    seller: SellerInfo(
+      name: _text(seller['name']),
+      company: _text(seller['company']),
+      mobile: _text(seller['mobile']),
+      whatsapp: _text(seller['whatsapp']),
+      email: _text(seller['email']),
+      gstNumber: _text(seller['gstNumber']),
+      panNumber: _text(seller['panNumber']),
+      address: _text(seller['address']),
+      city: _text(seller['city']),
+      state: _text(seller['state']),
+      pincode: _text(seller['pincode']),
+    ),
+    machineType: _text(details['machineType']),
+    installationYear: _text(details['installationYear']),
+    countryOfOrigin: _text(details['countryOfOrigin']),
+    controller: _text(details['controller']),
+    numberOfAxis: _text(details['numberOfAxis']),
+    machineCapacity: _text(details['machineCapacity']),
+    powerRequirement: _text(details['powerRequirement']),
+    maxSpindleSpeed: _text(details['maxSpindleSpeed']),
+    weight: _text(details['weight']),
+    workingStatus: _text(details['workingStatus']),
+    maintenanceStatus: _text(details['maintenanceStatus']),
+    lastServiceDate: _text(details['lastServiceDate']),
+    accessoriesIncluded: _text(details['accessoriesIncluded']),
+    commercial: CommercialInfo(
+      negotiable: tri(commercial['negotiable']),
+      gstAvailable: tri(commercial['gstAvailable']),
+      taxInvoiceAvailable: tri(commercial['taxInvoiceAvailable']),
+      financePending: tri(commercial['financePending']),
+      deliveryAvailable: tri(commercial['deliveryAvailable']),
+      loadingAvailable: tri(commercial['loadingAvailable']),
+      ownerType: _text(commercial['ownerType']),
+    ),
+    specifications: MachineSpecs(
+      tableSize: _text(specs['tableSize']),
+      lubricationSystem: _text(specs['lubricationSystem']),
+      electricalPanelCondition: _text(specs['electricalPanelCondition']),
+      toolMagazineCapacity: _text(specs['toolMagazineCapacity']),
+      servoMotors: _text(specs['servoMotors']),
+      toolChangerType: _text(specs['toolChangerType']),
+      ballScrewCondition: _text(specs['ballScrewCondition']),
+      coolantSystem: _text(specs['coolantSystem']),
+      guideways: _text(specs['guideways']),
+      hydraulicSystem: _text(specs['hydraulicSystem']),
+      otherSpecifications: _text(specs['otherSpecifications']),
+    ),
+    requiredPhotos: _strings(json['requiredPhotos']),
+    additionalRemarks: _text(json['additionalRemarks']),
+  );
 }

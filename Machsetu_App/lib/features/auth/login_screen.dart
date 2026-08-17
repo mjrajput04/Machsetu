@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/app_text_field.dart';
@@ -36,23 +35,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _loading = true);
     final result = await AuthService.instance.login(
-      email: _email.text.trim(),
+      identifier: _email.text.trim(),
       password: _password.text,
     );
     if (!mounted) return;
     setState(() => _loading = false);
 
     if (result.ok) {
-      await SessionStore.instance.save(email: _email.text.trim());
-      if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        AppRoutes.home,
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message ?? 'Login failed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message ?? 'Login failed')));
     }
   }
 
@@ -67,7 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ConstrainedBox(
                 // Keeps the whole page optically centred, yet still
                 // scrollable once the keyboard is up.
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 48,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,12 +94,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 24),
                             AppTextField(
                               controller: _email,
-                              label: 'Email Address',
-                              hint: 'you@company.com',
+                              label: 'Email Address or Mobile Number',
+                              hint: 'you@company.com or 98765 43210',
                               icon: Icons.mail_outline,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
-                              validator: Validators.email,
+                              validator: Validators.loginIdentifier,
                             ),
                             const SizedBox(height: 18),
                             AppTextField(
@@ -127,8 +125,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                 ),
-                                onPressed: () => Navigator.of(context)
-                                    .pushNamed(AppRoutes.forgotPassword),
+                                onPressed: () => Navigator.of(
+                                  context,
+                                ).pushNamed(AppRoutes.forgotPassword),
                                 child: const Text('Forgot Password?'),
                               ),
                             ),
@@ -166,8 +165,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         vertical: 8,
                                       ),
                                     ),
-                                    onPressed: () => Navigator.of(context)
-                                        .pushNamed(AppRoutes.register),
+                                    onPressed: () => Navigator.of(
+                                      context,
+                                    ).pushNamed(AppRoutes.register),
                                     child: const Text(
                                       'Register',
                                       style: TextStyle(fontSize: 15),

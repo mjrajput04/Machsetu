@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/services/upload_service.dart';
 import '../../core/theme/app_colors.dart';
 import 'data/sell_options.dart';
 import 'data/sell_store.dart';
@@ -22,7 +24,7 @@ class SellMachineScreen extends StatefulWidget {
 class _SellMachineScreenState extends State<SellMachineScreen> {
   static const List<String> steps = ['Details', 'Images', 'Docs', 'Review'];
 
-  /// Bundled photos stand in for a real gallery picker.
+  /// Stand-ins used when the upload cannot reach the sourcing desk.
   static const List<String> _samplePhotos = [
     'assets/images/machines/haas_vf2ss.jpg',
     'assets/images/machines/dmg_cmx_1100v.jpg',
@@ -57,8 +59,23 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
   TextEditingController _ctrl(String key) =>
       _fields.putIfAbsent(key, TextEditingController.new);
 
+  final _settings = SettingsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    // The category tick list is whatever the marketplace currently publishes.
+    _settings.addListener(_onSettings);
+    _settings.load();
+  }
+
+  void _onSettings() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _settings.removeListener(_onSettings);
     _scroll.dispose();
     for (final controller in _fields.values) {
       controller.dispose();
@@ -127,33 +144,89 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
-  void _addPhoto() {
+  /// Whatever the admin panel publishes, plus the sheet's own extras so a
+  /// seller can still tick something the marketplace has not listed yet.
+  List<String> get _categoryOptions {
+    final published = _settings.categories;
+    if (published.isEmpty) return SellOptions.categories;
+    return [
+      ...published,
+      ...SellOptions.categories.where((c) => !published.contains(c)),
+    ];
+  }
+
+  /// Every other checklist and chip row, also owned by the desk. The bundled
+  /// list stands in whenever the settings call has not landed.
+  List<String> _options(List<String> published, List<String> bundled) =>
+      published.isEmpty ? bundled : published;
+
+  List<String> get _workingStatus =>
+      _options(_settings.sellOptions.workingStatus, SellOptions.workingStatus);
+
+  List<String> get _conditions =>
+      _options(_settings.sellOptions.conditions, SellOptions.conditions);
+
+  List<String> get _maintenanceStatus => _options(
+    _settings.sellOptions.maintenanceStatus,
+    SellOptions.maintenanceStatus,
+  );
+
+  List<String> get _ownerTypes =>
+      _options(_settings.sellOptions.ownerTypes, SellOptions.ownerTypes);
+
+  List<String> get _requiredPhotos => _options(
+    _settings.sellOptions.requiredPhotos,
+    SellOptions.requiredPhotos,
+  );
+
+  List<String> get _documentTypes =>
+      _options(_settings.sellOptions.documentTypes, SellOptions.documentTypes);
+
+  Future<void> _addPhoto() async {
     if (_draft.images.length >= 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You can attach up to 10 photos')),
       );
       return;
     }
-    setState(() {
-      _draft.images.add(
-        _samplePhotos[_draft.images.length % _samplePhotos.length],
-      );
-    });
+
+    final room = 10 - _draft.images.length;
+    final uploaded = await UploadService.instance.pickAndUpload(limit: room);
+    if (!mounted) return;
+
+    if (uploaded.isEmpty) {
+      // Nothing picked, or the upload failed — keep the wizard usable either
+      // way by falling back to a bundled photo.
+      setState(() {
+        _draft.images.add(
+          _samplePhotos[_draft.images.length % _samplePhotos.length],
+        );
+      });
+      return;
+    }
+    setState(() => _draft.images.addAll(uploaded));
   }
 
-  void _addDocument(String category) {
+  Future<void> _addDocument(String category) async {
     final index = _draft.documents.length + 1;
     final slug = category
         .replaceAll(RegExp(r'[^A-Za-z ]'), '')
         .trim()
         .replaceAll(' ', '_');
+
+    final uploaded = await UploadService.instance.pickDocumentAndUpload();
+    if (!mounted) return;
+
     setState(() {
       _draft.documents.add(
         SellDocument(
-          name: '${slug}_$index.pdf',
-          size: '${(index * 1.3 + 1).toStringAsFixed(1)} MB',
+          // A failed or cancelled pick still records the paperwork type, so
+          // the desk knows what the seller says they have.
+          name: uploaded?.name ?? '${slug}_$index.pdf',
+          size: uploaded?.size ?? '—',
           category: category,
           uploadedOn: 'Just now',
+          url: uploaded?.url ?? '',
         ),
       );
     });
@@ -162,16 +235,14 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
   Future<void> _submit() async {
     _sync();
     setState(() => _submitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
 
-    final listing = SellStore.instance.submit(_draft);
+    final listing = await SellStore.instance.submit(_draft);
+    if (!mounted) return;
     setState(() => _submitting = false);
 
-    await Navigator.of(context).pushReplacementNamed(
-      AppRoutes.submissionStatus,
-      arguments: listing,
-    );
+    await Navigator.of(
+      context,
+    ).pushReplacementNamed(AppRoutes.submissionStatus, arguments: listing);
   }
 
   void _saveDraft() {
@@ -382,7 +453,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
         children: [
           SellCheckboxGroup(
             label: 'Machine Category (select all that apply)',
-            options: SellOptions.categories,
+            options: _categoryOptions,
             selected: _draft.categories,
             onToggle: (option) => setState(() {
               _draft.categories.contains(option)
@@ -556,19 +627,19 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           ),
           SellChoice(
             label: 'Working Status',
-            options: SellOptions.workingStatus,
+            options: _workingStatus,
             value: _draft.workingStatus,
             onChanged: (value) => setState(() => _draft.workingStatus = value),
           ),
           SellChoice(
             label: 'Machine Condition',
-            options: SellOptions.conditions,
+            options: _conditions,
             value: _draft.condition,
             onChanged: (value) => setState(() => _draft.condition = value),
           ),
           SellChoice(
             label: 'Maintenance Status',
-            options: SellOptions.maintenanceStatus,
+            options: _maintenanceStatus,
             value: _draft.maintenanceStatus,
             onChanged: (value) =>
                 setState(() => _draft.maintenanceStatus = value),
@@ -602,7 +673,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           ),
           SellField(
             label: 'Machine Description',
-            hint: 'Provide details about specs, condition, included '
+            hint:
+                'Provide details about specs, condition, included '
                 'accessories, or known issues…',
             controller: _ctrl('description'),
             maxLines: 5,
@@ -660,7 +732,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           const SizedBox(height: 4),
           SellChoice(
             label: 'Owner Type',
-            options: SellOptions.ownerTypes,
+            options: _ownerTypes,
             value: _draft.ownerType,
             onChanged: (value) => setState(() => _draft.ownerType = value),
           ),
@@ -886,7 +958,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
         children: [
           SellCheckboxGroup(
             label: 'Tick every view you have provided',
-            options: SellOptions.requiredPhotos,
+            options: _requiredPhotos,
             selected: _draft.requiredPhotos,
             onToggle: (option) => setState(() {
               _draft.requiredPhotos.contains(option)
@@ -896,7 +968,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           ),
           Text(
             '${_draft.requiredPhotos.length} of '
-            '${SellOptions.requiredPhotos.length} views ticked',
+            '${_requiredPhotos.length} views ticked',
             style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
         ],
@@ -929,7 +1001,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
         ),
       ),
       const SizedBox(height: 18),
-      for (final type in SellOptions.documentTypes) ...[
+      for (final type in _documentTypes) ...[
         DocTypeCard(
           title: type,
           subtitle: 'Not attached',
@@ -1004,10 +1076,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                 ),
               ),
               Expanded(
-                child: SummaryPair(
-                  label: 'Model',
-                  value: orDash(_draft.model),
-                ),
+                child: SummaryPair(label: 'Model', value: orDash(_draft.model)),
               ),
             ],
           ),
@@ -1016,10 +1085,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: SummaryPair(
-                  label: 'Year',
-                  value: orDash(_draft.year),
-                ),
+                child: SummaryPair(label: 'Year', value: orDash(_draft.year)),
               ),
               Expanded(
                 child: SummaryPair(
@@ -1058,10 +1124,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
           ),
           SpecRow(label: 'Machine Location', value: orDash(_draft.location)),
           SpecRow(label: 'Working Hours', value: orDash(_draft.workingHours)),
-          SpecRow(
-            label: 'Working Status',
-            value: orDash(_draft.workingStatus),
-          ),
+          SpecRow(label: 'Working Status', value: orDash(_draft.workingStatus)),
           SpecRow(label: 'Condition', value: orDash(_draft.condition)),
           SpecRow(
             label: 'Maintenance Status',
@@ -1117,17 +1180,16 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                 scrollDirection: Axis.horizontal,
                 itemCount: _draft.images.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (context, index) => ReviewThumb(
-                  path: _draft.images[index],
-                  isMain: index == 0,
-                ),
+                itemBuilder: (context, index) =>
+                    ReviewThumb(path: _draft.images[index], isMain: index == 0),
               ),
             ),
           const SizedBox(height: 12),
           SpecRow(
             label: 'Required views ticked',
-            value: '${_draft.requiredPhotos.length} of '
-                '${SellOptions.requiredPhotos.length}',
+            value:
+                '${_draft.requiredPhotos.length} of '
+                '${_requiredPhotos.length}',
           ),
         ],
       ),
@@ -1395,7 +1457,7 @@ class _BottomBar extends StatelessWidget {
                             ],
                           ],
                         ),
-                  ),
+                ),
               ),
             ],
           ),

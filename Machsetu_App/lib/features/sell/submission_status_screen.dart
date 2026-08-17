@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_image.dart';
 import 'data/sell_store.dart';
 
 /// Confirmation after a machine is submitted, with a timeline alternative.
@@ -74,10 +75,9 @@ class _SubmissionStatusScreenState extends State<SubmissionStatusScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () => Navigator.of(context).pushNamed(
-              AppRoutes.listingDetails,
-              arguments: listing,
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).pushNamed(AppRoutes.listingDetails, arguments: listing),
             icon: const Icon(Icons.track_changes, size: 20),
             label: const Text(
               'Track Submission',
@@ -95,8 +95,9 @@ class _SubmissionStatusScreenState extends State<SubmissionStatusScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            onPressed: () => Navigator.of(context)
-                .pushReplacementNamed(AppRoutes.myListings),
+            onPressed: () => Navigator.of(
+              context,
+            ).pushReplacementNamed(AppRoutes.myListings),
             icon: const Icon(Icons.inventory_2_outlined, size: 19),
             label: const Text(
               'View My Listings',
@@ -174,12 +175,11 @@ class _SuccessView extends StatelessWidget {
                       color: AppColors.navy.withValues(alpha: 0.35),
                     ),
                   )
-                : Image.asset(
+                : AppImage(
                     hero!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const ColoredBox(
-                      color: AppColors.steelBright,
-                    ),
+                    errorBuilder: (_, _, _) =>
+                        const ColoredBox(color: AppColors.steelBright),
                   ),
           ),
         ),
@@ -364,9 +364,7 @@ class ListingTimelineRow extends StatelessWidget {
                 ),
               ),
               if (!isLast)
-                Expanded(
-                  child: Container(width: 2, color: AppColors.border),
-                ),
+                Expanded(child: Container(width: 2, color: AppColors.border)),
             ],
           ),
           const SizedBox(width: 14),
