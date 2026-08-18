@@ -1,12 +1,10 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { Binary } from "mongodb";
 
 import { INQUIRIES, ORDERS, PRODUCTS, SELL_REQUESTS } from "@/lib/data";
 import {
   db,
   ensureIndexes,
-  files,
   inquiries,
   orders,
   products,
@@ -15,119 +13,58 @@ import {
 } from "@/server/db";
 import { fail, ok, readToken } from "@/server/auth";
 
-const TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-};
-
 /**
- * Moves the bundled demo photos into the database.
+ * Points any row still holding a database-backed URL for one of the bundled
+ * demo photos back at the file itself.
  *
- * After this runs every image in the app is served from Mongo through
- * `/api/files/<name>`, so nothing depends on files sitting on a disk.
+ * Only the names actually shipped in `public/machines` are rewritten, so a
+ * real upload that happens to sit behind the same route is left alone.
  */
-async function importPhotos(): Promise<number> {
-  const dir = path.join(process.cwd(), "public", "machines");
+async function relinkBundledPhotos(): Promise<number> {
   let names: string[];
   try {
-    names = await readdir(dir);
+    names = await readdir(path.join(process.cwd(), "public", "machines"));
   } catch {
     return 0;
   }
 
-  const col = await files();
-  let stored = 0;
+  const database = await db();
+  let moved = 0;
 
   for (const name of names) {
-    const ext = path.extname(name).toLowerCase();
-    const contentType = TYPES[ext];
-    if (!contentType) continue;
+    const from = `/api/files/${name}`;
+    const to = `/machines/${name}`;
 
-    // The id is the file name, so re-seeding refreshes rather than duplicates
-    // and existing listings keep pointing at the right photo.
-    const bytes = await readFile(path.join(dir, name));
-    await col.updateOne(
-      { id: name },
-      {
-        $set: {
-          id: name,
-          filename: name,
-          contentType,
-          size: bytes.byteLength,
-          data: new Binary(bytes),
-          uploadedBy: "seed",
-        },
-        $setOnInsert: { createdAt: new Date() },
-      },
-      { upsert: true },
-    );
-    stored += 1;
-  }
-  return stored;
-}
+    for (const collection of ["products", "sellRequests"]) {
+      const result = await database
+        .collection(collection)
+        .updateMany({ images: from }, { $set: { "images.$[el]": to } }, {
+          arrayFilters: [{ el: from }],
+        });
+      moved += result.modifiedCount;
+    }
 
-/** Rewrites bundled `/machines/x.jpg` paths onto the database-backed URL. */
-function toFileUrls<T>(record: T): T {
-  return JSON.parse(
-    JSON.stringify(record).replaceAll("/machines/", "/api/files/"),
-  ) as T;
-}
+    for (const collection of ["inquiries", "orders"]) {
+      const result = await database
+        .collection(collection)
+        .updateMany({ image: from }, { $set: { image: to } });
+      moved += result.modifiedCount;
+    }
 
-const OLD = "/machines/";
-const NEW = "/api/files/";
+    const slides = await database
+      .collection("settings")
+      .updateMany({ "heroSlides.image": from }, {
+        $set: { "heroSlides.$[el].image": to },
+      }, { arrayFilters: [{ "el.image": from }] });
+    moved += slides.modifiedCount;
 
-/** One `$replaceAll` on a single string field. */
-const swap = (field: string) => ({
-  $replaceAll: { input: `$${field}`, find: OLD, replacement: NEW },
-});
-
-/**
- * Points rows written before this change at the database-backed URLs.
- *
- * Runs on every seed so a listing approved from an older submission cannot
- * keep a stale link to a file on disk.
- */
-async function normaliseImagePaths(): Promise<void> {
-  const database = await db();
-
-  for (const name of ["products", "sellRequests"]) {
-    await database.collection(name).updateMany({ images: { $type: "array" } }, [
-      {
-        $set: {
-          images: {
-            $map: {
-              input: "$images",
-              in: {
-                $replaceAll: { input: "$$this", find: OLD, replacement: NEW },
-              },
-            },
-          },
-        },
-      },
-    ]);
+    const avatars = await database
+      .collection("users")
+      .updateMany({ avatar: from }, { $set: { avatar: to } });
+    moved += avatars.modifiedCount;
   }
 
-  for (const name of ["inquiries", "orders"]) {
-    await database
-      .collection(name)
-      .updateMany({ image: { $type: "string" } }, [
-        { $set: { image: swap("image") } },
-      ]);
-  }
-
-  await database
-    .collection("settings")
-    .updateMany({ "hero.image": { $type: "string" } }, [
-      { $set: { "hero.image": swap("hero.image") } },
-    ]);
-
-  await database
-    .collection("users")
-    .updateMany({ avatar: { $type: "string" } }, [
-      { $set: { avatar: swap("avatar") } },
-    ]);
+  return moved;
 }
 
 /**
@@ -161,35 +98,29 @@ export async function POST(request: Request) {
     ]);
   }
 
-  const photos = await importPhotos();
-
   const now = new Date();
-  for (const raw of PRODUCTS) {
-    const p = toFileUrls(raw);
+  for (const p of PRODUCTS) {
     await productCol.updateOne(
       { id: p.id },
       { $set: { ...p, updatedAt: now }, $setOnInsert: { createdAt: now } },
       { upsert: true },
     );
   }
-  for (const rawRequest of SELL_REQUESTS) {
-    const r = toFileUrls(rawRequest);
+  for (const r of SELL_REQUESTS) {
     await requestCol.updateOne(
       { id: r.id },
       { $set: { ...r, updatedAt: now }, $setOnInsert: { createdAt: now } },
       { upsert: true },
     );
   }
-  for (const rawInquiry of INQUIRIES) {
-    const i = toFileUrls(rawInquiry);
+  for (const i of INQUIRIES) {
     await inquiryCol.updateOne(
       { id: i.id },
       { $set: { ...i, updatedAt: now }, $setOnInsert: { createdAt: now } },
       { upsert: true },
     );
   }
-  for (const rawOrder of ORDERS) {
-    const o = toFileUrls(rawOrder);
+  for (const o of ORDERS) {
     await orderCol.updateOne(
       { id: o.id },
       { $set: { ...o, updatedAt: now }, $setOnInsert: { createdAt: now } },
@@ -197,14 +128,14 @@ export async function POST(request: Request) {
     );
   }
 
-  await normaliseImagePaths();
+  const relinked = await relinkBundledPhotos();
 
   // The import brings its own ids, so the generators have to move past them.
   await syncCounter("products", "MS-", 1000, "products");
   await syncCounter("requests", "REQ-", 5500, "sellRequests");
 
   return ok({
-    photos,
+    relinked,
     products: await productCol.countDocuments(),
     requests: await requestCol.countDocuments(),
     inquiries: await inquiryCol.countDocuments(),

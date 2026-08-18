@@ -45,7 +45,7 @@ export interface UserDoc {
   passwordHash: string;
 
   // Profile (Flutter edit-profile screen)
-  /** Uploaded profile photo, e.g. /api/files/… — empty until they set one. */
+  /** Uploaded profile photo, e.g. /uploads/… — empty until they set one. */
   avatar: string;
   designation: string;
   company: string;
@@ -172,11 +172,11 @@ export interface SettingsDoc {
 }
 
 /**
- * An uploaded photo or document, stored in Mongo rather than on disk.
+ * A file that was stored in the database before uploads moved to a folder.
  *
- * Everything the app and console display is served back through
- * `/api/files/<id>`, so there is no filesystem path to keep in sync and a
- * fresh checkout of the repo carries no orphaned images.
+ * New uploads are written to disk and only their path is kept, so this
+ * collection is read-only history — `/api/files/<id>` still answers for
+ * anything already in here.
  */
 export interface FileDoc {
   _id?: ObjectId;
@@ -253,7 +253,7 @@ export const DEFAULT_SETTINGS: Omit<SettingsDoc, "_id" | "updatedAt"> = {
       subtitle:
         "Access 450+ certified CNC and VMC centers with full maintenance history and performance logs.",
       ctaLabel: "Explore Manifest",
-      image: "/api/files/workshop_banner.jpg",
+      image: "/machines/workshop_banner.jpg",
     },
     {
       badge: "INSPECTED & GRADED",
@@ -261,7 +261,7 @@ export const DEFAULT_SETTINGS: Omit<SettingsDoc, "_id" | "updatedAt"> = {
       subtitle:
         "Spindle hours, service history and a technical audit before a single listing goes live.",
       ctaLabel: "See Inspections",
-      image: "/api/files/vmc_machining_center.jpg",
+      image: "/machines/vmc_machining_center.jpg",
     },
     {
       badge: "SELL IN 48 HOURS",
@@ -269,7 +269,7 @@ export const DEFAULT_SETTINGS: Omit<SettingsDoc, "_id" | "updatedAt"> = {
       subtitle:
         "List a machine in four steps and our sourcing desk brings verified buyers to you.",
       ctaLabel: "List a Machine",
-      image: "/api/files/dmg_mori_nhx.jpg",
+      image: "/machines/dmg_mori_nhx.jpg",
     },
   ],
   commercials: {

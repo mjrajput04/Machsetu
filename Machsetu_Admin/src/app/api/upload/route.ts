@@ -1,94 +1,76 @@
-import { Binary } from "mongodb";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 
-import { ensureIndexes, files } from "@/server/db";
 import { fail, ok, readToken } from "@/server/auth";
-
-const MAX_BYTES = 8 * 1024 * 1024;
-const EXTENSIONS: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "application/pdf": ".pdf",
-};
-
-function slug(name: string) {
-  return (
-    name
-      .toLowerCase()
-      .replace(/\.[^.]+$/, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 40) || "file"
-  );
-}
+import {
+  MAX_UPLOAD_BYTES,
+  UPLOAD_DIR,
+  UPLOAD_PREFIX,
+  UPLOAD_TYPES,
+  uploadName,
+  uploadPath,
+} from "@/server/storage";
 
 /**
- * Accepts a multipart upload from either the console or the mobile app and
- * keeps the bytes in MongoDB.
+ * Accepts a multipart upload from the console or the mobile app.
  *
- * Nothing touches the filesystem, so the returned URL is an API path the
- * database can always answer — never a link to a file on a disk somewhere.
+ * The bytes are written to the upload folder untouched — no resizing, no
+ * re-encoding — and only the path comes back for the database to store. The
+ * web server hands the file straight to the browser from there.
  */
 export async function POST(request: Request) {
-  await ensureIndexes();
   const token = readToken(request.headers.get("authorization"));
   if (!token) return fail("Not authorised", 401);
 
   const form = await request.formData().catch(() => null);
   if (!form) return fail("Expected a multipart form upload");
 
-  const entries = form.getAll("file").filter((f): f is File => f instanceof File);
+  const entries = form
+    .getAll("file")
+    .filter((f): f is File => f instanceof File);
   if (entries.length === 0) return fail("No file was uploaded");
 
-  const col = await files();
+  await mkdir(UPLOAD_DIR, { recursive: true });
+
   const uploaded: { url: string; name: string; size: number }[] = [];
 
   for (const file of entries) {
-    if (file.size > MAX_BYTES) {
-      return fail(`${file.name} is larger than 8 MB`, 413);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return fail(
+        `${file.name} is larger than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`,
+        413,
+      );
     }
-    const ext = EXTENSIONS[file.type];
+    const ext = UPLOAD_TYPES[file.type];
     if (!ext) return fail(`${file.name} is not a supported file type`, 415);
 
-    // Timestamp plus a counter keeps ids unique without a random source.
-    const stamp = `${Date.now().toString(36)}-${uploaded.length}`;
-    const id = `${slug(file.name)}-${stamp}${ext}`;
+    const name = uploadName(file.name, ext, uploaded.length);
     const bytes = Buffer.from(await file.arrayBuffer());
-
-    await col.insertOne({
-      id,
-      filename: file.name,
-      contentType: file.type,
-      size: bytes.byteLength,
-      data: new Binary(bytes),
-      uploadedBy: token.sub,
-      createdAt: new Date(),
-    });
+    await writeFile(path.join(UPLOAD_DIR, name), bytes);
 
     uploaded.push({
-      url: `/api/files/${id}`,
+      url: `${UPLOAD_PREFIX}/${name}`,
       name: file.name,
-      size: file.size,
+      size: bytes.byteLength,
     });
   }
 
   return ok({ files: uploaded, url: uploaded[0].url });
 }
 
-/** Removes a stored file. Ids are opaque, so nothing else can be reached. */
+/** Removes a stored file. Only ever touches the upload folder. */
 export async function DELETE(request: Request) {
-  await ensureIndexes();
   const token = readToken(request.headers.get("authorization"));
   if (!token) return fail("Not authorised", 401);
 
   const url = new URL(request.url).searchParams.get("url") ?? "";
-  const id = url.startsWith("/api/files/")
-    ? url.slice("/api/files/".length)
-    : "";
-  if (!id || id.includes("/")) return fail("That file is not an upload");
+  const target = uploadPath(url);
+  if (!target) return fail("That file is not an upload");
 
-  // Deleting twice is not an error — the caller only cares that it is gone.
-  await (await files()).deleteOne({ id });
-  return ok({ deleted: `/api/files/${id}` });
+  try {
+    await unlink(target);
+  } catch {
+    // Already gone — the caller only cares that it is no longer there.
+  }
+  return ok({ deleted: url });
 }

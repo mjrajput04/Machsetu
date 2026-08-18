@@ -23,10 +23,9 @@ class UploadService {
   /// Returns the stored paths, or an empty list if they cancelled. [limit]
   /// caps the selection so the wizard's ten-photo rule holds.
   Future<List<String>> pickAndUpload({int limit = 10}) async {
-    final picked = await _picker.pickMultiImage(
-      imageQuality: 85,
-      maxWidth: 2000,
-    );
+    // No compression and no downscale: a buyer judging a machine needs the
+    // full-resolution photo the seller actually took.
+    final picked = await _picker.pickMultiImage();
     if (picked.isEmpty) return const [];
 
     final files = picked.take(limit).toList();
@@ -46,8 +45,9 @@ class UploadService {
   }) async {
     final picked = await _picker.pickImage(
       source: source,
-      imageQuality: 85,
-      maxWidth: 1200,
+      // A profile photo is only ever shown small, so this one is trimmed.
+      imageQuality: 92,
+      maxWidth: 1600,
     );
     if (picked == null) return null;
     return upload(picked);
