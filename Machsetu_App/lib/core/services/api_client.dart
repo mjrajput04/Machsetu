@@ -17,9 +17,11 @@ class ApiResult {
   final String? message;
 }
 
-/// Thin HTTP client for the MachSetu admin API.
+/// Thin HTTP client for the MachSetu API.
 ///
-/// The base URL can be overridden at build time:
+/// A release build talks to the live marketplace; a debug build talks to the
+/// admin panel running on the developer's own machine. Either can be pointed
+/// somewhere else at build time:
 ///   flutter run --dart-define=API_BASE_URL=http://192.168.1.5:3000
 class ApiClient {
   ApiClient._();
@@ -28,9 +30,15 @@ class ApiClient {
 
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
-  /// Android emulators reach the host machine on 10.0.2.2, not localhost.
+  /// The deployed marketplace — what every shipped build points at.
+  static const String production = 'https://machsetu.com';
+
   static String get baseUrl {
     if (_override.isNotEmpty) return _override;
+    if (!kDebugMode) return production;
+
+    // Debug only. Android emulators reach the host machine on 10.0.2.2,
+    // never on localhost.
     if (kIsWeb) return 'http://localhost:3000';
     try {
       if (Platform.isAndroid) return 'http://10.0.2.2:3000';

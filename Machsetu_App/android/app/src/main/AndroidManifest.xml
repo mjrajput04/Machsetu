@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The marketplace lives on a server, so a release build needs this as
+         much as a debug one does. Without it the installed app can reach
+         nothing at all. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="MachSetu"
         android:name="${applicationName}"
