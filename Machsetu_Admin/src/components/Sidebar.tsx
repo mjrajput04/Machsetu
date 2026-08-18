@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAdminSession } from "./AdminSession";
@@ -37,8 +38,15 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-navy-900 text-white">
       <div className="flex items-center gap-3 px-5 py-5">
-        <span className="grid h-10 w-10 place-items-center rounded-lg bg-accent-500 text-sm font-black">
-          MS
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white p-1">
+          <Image
+            src="/machsetu-mark.png"
+            alt="MachSetu"
+            width={40}
+            height={40}
+            className="h-full w-full object-contain"
+            priority
+          />
         </span>
         <div className="leading-tight">
           <p className="text-sm font-extrabold tracking-wide">MACHSETU</p>

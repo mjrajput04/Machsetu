@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   title: "MachSetu Admin Console",
   description:
     "Operations console for the MachSetu industrial machine marketplace.",
+  // src/app/icon.png is picked up automatically for the tab and bookmarks.
+  applicationName: "MachSetu",
 };
 
 export default function RootLayout({

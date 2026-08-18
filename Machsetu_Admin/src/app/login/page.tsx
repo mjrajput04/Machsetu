@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAdminSession } from "@/components/AdminSession";
@@ -57,8 +58,15 @@ export default function AdminLoginPage() {
           }}
         />
         <div className="relative flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-lg bg-accent-500 text-sm font-black">
-            MS
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white p-1">
+            <Image
+              src="/machsetu-mark.png"
+              alt="MachSetu"
+              width={44}
+              height={44}
+              className="h-full w-full object-contain"
+              priority
+            />
           </span>
           <div className="leading-tight">
             <p className="text-sm font-extrabold tracking-wide">MACHSETU</p>
