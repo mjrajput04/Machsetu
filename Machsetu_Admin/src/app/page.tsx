@@ -39,6 +39,13 @@ export default function DashboardPage() {
   const summary = useApi<{
     activity: { kind: string; title: string; detail: string; at: string }[];
     revenue: { label: string; value: number }[];
+    deltas: {
+      listingsThisWeek: number;
+      approvalsOverdue: number;
+      inquiriesToday: number;
+      gmvThisMonth: number;
+      gmvLastMonth: number;
+    };
   }>("/api/admin/summary");
   const config = useApi<{ categories: string[] }>("/api/settings");
 
@@ -70,40 +77,67 @@ export default function DashboardPage() {
   const openInquiries = INQUIRIES.filter(
     (i) => i.status !== "Closed" && i.status !== "Lost",
   ).length;
-  const gmv = ORDERS.reduce((sum, o) => sum + o.amount, 0);
   const inventoryValue = PRODUCTS.filter((p) => p.status === "Live").reduce(
     (sum, p) => sum + p.price,
     0,
   );
 
+  // Every figure below is counted off the database — nothing is illustrative.
+  const deltas = summary.data?.deltas;
+  const gmvThisMonth = deltas?.gmvThisMonth ?? 0;
+  const gmvLastMonth = deltas?.gmvLastMonth ?? 0;
+  const gmvChange =
+    gmvLastMonth > 0
+      ? Math.round(((gmvThisMonth - gmvLastMonth) / gmvLastMonth) * 100)
+      : null;
+  const inFlight = ORDERS.filter((o) => o.stage !== "Delivered").length;
+
   const stats = [
     {
       label: "Live Listings",
       value: `${liveListings}`,
-      delta: "+3 this week",
-      up: true,
+      delta:
+        deltas === undefined
+          ? "—"
+          : deltas.listingsThisWeek > 0
+            ? `+${deltas.listingsThisWeek} this week`
+            : "none this week",
+      up: (deltas?.listingsThisWeek ?? 0) > 0,
       hint: `${PRODUCTS.length} total in catalogue`,
     },
     {
       label: "Pending Approvals",
       value: `${pendingRequests}`,
-      delta: "2 over 48h",
-      up: false,
+      delta:
+        deltas === undefined
+          ? "—"
+          : deltas.approvalsOverdue > 0
+            ? `${deltas.approvalsOverdue} over 48h`
+            : "all within 48h",
+      up: (deltas?.approvalsOverdue ?? 0) === 0,
       hint: "Sell requests awaiting review",
     },
     {
       label: "Open Inquiries",
       value: `${openInquiries}`,
-      delta: "+2 today",
-      up: true,
+      delta:
+        deltas === undefined
+          ? "—"
+          : deltas.inquiriesToday > 0
+            ? `+${deltas.inquiriesToday} today`
+            : "none today",
+      up: (deltas?.inquiriesToday ?? 0) > 0,
       hint: `${INQUIRIES.length} raised all-time`,
     },
     {
       label: "Order Value (MTD)",
-      value: rupeesShort(gmv),
-      delta: "+14.5%",
-      up: true,
-      hint: `${ORDERS.length} orders in progress`,
+      value: rupeesShort(gmvThisMonth),
+      delta:
+        gmvChange === null
+          ? "no orders last month"
+          : `${gmvChange >= 0 ? "+" : ""}${gmvChange}% vs last month`,
+      up: (gmvChange ?? 0) >= 0,
+      hint: `${inFlight} order${inFlight === 1 ? "" : "s"} in progress`,
     },
   ];
 

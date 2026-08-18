@@ -134,5 +134,63 @@ export async function GET(request: Request) {
     return { label: MONTHS[month], value };
   });
 
-  return ok({ activity, revenue });
+  // ---- the figures under each headline number -----------------------------
+
+  const day = 24 * 60 * 60 * 1000;
+  const weekAgo = new Date(now.getTime() - 7 * day);
+  const twoDaysAgo = new Date(now.getTime() - 2 * day);
+  const today = now.toISOString().slice(0, 10);
+  const thisMonth = `${now.getFullYear()}-${now.getMonth()}`;
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = `${lastMonthDate.getFullYear()}-${lastMonthDate.getMonth()}`;
+
+  /** When a row was created, however that row records it. */
+  const when = (value: unknown, fallback: unknown): Date | null => {
+    if (value instanceof Date) return value;
+    const parsed = new Date(String(value ?? ""));
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+    return fallback instanceof Date ? fallback : null;
+  };
+
+  const [listingsThisWeek, approvalsOverdue, inquiriesToday] =
+    await Promise.all([
+      database.collection("products").countDocuments({
+        status: "Live",
+        createdAt: { $gte: weekAgo },
+      }),
+      database
+        .collection("sellRequests")
+        .find({ status: "Awaiting Review" }, { projection: { submittedOn: 1, createdAt: 1 } })
+        .toArray()
+        .then(
+          (rows) =>
+            rows.filter((r) => {
+              const at = when(r.submittedOn, r.createdAt);
+              return at !== null && at < twoDaysAgo;
+            }).length,
+        ),
+      database.collection("inquiries").countDocuments({ raisedOn: today }),
+    ]);
+
+  let gmvThisMonth = 0;
+  let gmvLastMonth = 0;
+  for (const order of ledger) {
+    const at = when(order.placedOn, order.createdAt);
+    if (!at) continue;
+    const key = `${at.getFullYear()}-${at.getMonth()}`;
+    if (key === thisMonth) gmvThisMonth += Number(order.amount ?? 0);
+    if (key === lastMonth) gmvLastMonth += Number(order.amount ?? 0);
+  }
+
+  return ok({
+    activity,
+    revenue,
+    deltas: {
+      listingsThisWeek,
+      approvalsOverdue,
+      inquiriesToday,
+      gmvThisMonth,
+      gmvLastMonth,
+    },
+  });
 }
