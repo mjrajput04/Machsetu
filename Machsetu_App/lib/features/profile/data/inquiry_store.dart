@@ -5,15 +5,12 @@ import '../../../core/services/session_store.dart';
 import 'inquiries.dart';
 
 /// The buyer's RFQs, backed by the inquiries API.
-///
-/// The bundled list stays as the offline fallback so My Inquiries always has
-/// something to show.
 class InquiryStore extends ChangeNotifier {
   InquiryStore._();
 
   static final InquiryStore instance = InquiryStore._();
 
-  List<Inquiry> _all = InquiryData.all;
+  List<Inquiry> _all = const [];
   bool _loading = false;
   bool _loadedOnce = false;
 
@@ -21,6 +18,13 @@ class InquiryStore extends ChangeNotifier {
   List<Inquiry> get open => _all.where((i) => i.isOpen).toList();
   List<Inquiry> get closed => _all.where((i) => !i.isOpen).toList();
   bool get isLive => _loadedOnce;
+
+  /// Fills the list without a round trip. Tests only.
+  @visibleForTesting
+  void seed(List<Inquiry> rows) {
+    _all = rows;
+    _loadedOnce = true;
+  }
 
   Future<void> load({bool force = false}) async {
     final token = await SessionStore.instance.token();

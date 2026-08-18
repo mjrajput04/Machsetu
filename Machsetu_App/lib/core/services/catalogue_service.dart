@@ -6,17 +6,16 @@ import '../../features/search/data/search_results.dart';
 import 'api_client.dart';
 import 'settings_service.dart';
 
-/// Live catalogue backed by the MachSetu admin database.
+/// The marketplace catalogue, as the sourcing desk has it.
 ///
-/// The bundled [MachineData.all] list stays as the offline fallback, so the
-/// home, search and listing screens render exactly as before whenever the API
-/// is unreachable.
+/// Nothing is invented here: until the API answers the list is empty and the
+/// screens say so, rather than showing machines that are not for sale.
 class CatalogueService extends ChangeNotifier {
   CatalogueService._();
 
   static final CatalogueService instance = CatalogueService._();
 
-  List<Machine> _machines = MachineData.all;
+  List<Machine> _machines = const [];
   bool _loading = false;
   bool _loadedOnce = false;
   DateTime? _fetchedAt;
@@ -48,13 +47,12 @@ class CatalogueService extends ChangeNotifier {
     return null;
   }
 
-  /// Search page cards. Falls back to the bundled result set when offline.
+  /// Search page cards.
   List<SearchListing> get searchResults =>
-      _loadedOnce ? _machines.map(_toSearchListing).toList() : SearchData.results;
+      _machines.map(_toSearchListing).toList();
 
   /// Machine listing page cards, in the same shape the screen already draws.
-  List<Listing> get listings =>
-      _loadedOnce ? _machines.map(_toListing).toList() : ListingData.all;
+  List<Listing> get listings => _machines.map(_toListing).toList();
 
   /// Category chips for the listing page — "All Machines" plus whatever the
   /// admin panel publishes, so an empty category still shows up.
@@ -63,7 +61,6 @@ class CatalogueService extends ChangeNotifier {
     if (published.isNotEmpty) {
       return [ListingData.categories.first, ...published];
     }
-    if (!_loadedOnce) return ListingData.categories;
 
     final seen = <String>{};
     for (final machine in _machines) {
@@ -74,11 +71,18 @@ class CatalogueService extends ChangeNotifier {
 
   List<Listing> listingsForCategory(String category) {
     if (category == ListingData.categories.first) return listings;
-    if (!_loadedOnce) return ListingData.byCategory(category);
     return _machines
         .where((m) => m.category == category)
         .map(_toListing)
         .toList();
+  }
+
+  /// Fills the catalogue without a round trip. Tests only.
+  @visibleForTesting
+  void seed(List<Machine> machines) {
+    _machines = machines;
+    _loadedOnce = true;
+    _fetchedAt = DateTime.now();
   }
 
   /// Pulls the catalogue, skipping the call while the last copy is fresh.
@@ -91,16 +95,14 @@ class CatalogueService extends ChangeNotifier {
     final result = await ApiClient.instance.get('/api/products?limit=200');
     if (result.ok) {
       final raw = result.data['products'];
-      if (raw is List && raw.isNotEmpty) {
-        final parsed = raw
+      if (raw is List) {
+        // An empty catalogue is a real answer, not a failure to load.
+        _machines = raw
             .whereType<Map<String, dynamic>>()
             .map(_toMachine)
             .toList();
-        if (parsed.isNotEmpty) {
-          _machines = parsed;
-          _loadedOnce = true;
-          _fetchedAt = DateTime.now();
-        }
+        _loadedOnce = true;
+        _fetchedAt = DateTime.now();
       }
     }
 

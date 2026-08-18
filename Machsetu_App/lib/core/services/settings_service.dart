@@ -157,15 +157,23 @@ class SettingsService extends ChangeNotifier {
   bool get isLive => _loadedOnce;
 
   /// Home-screen chips: "All" first, then whatever the desk has published.
-  List<(IconData, String)> get categoryChips {
-    if (!_loadedOnce || _categories.isEmpty) return MachineData.categories;
-    return [
-      (Icons.grid_view_rounded, MachineData.allCategory),
-      for (final name in _categories) (_iconFor(name), name),
-    ];
-  }
+  ///
+  /// Nothing is invented — before the settings call lands there is only
+  /// "All", so a chip the marketplace does not offer can never appear.
+  List<(IconData, String)> get categoryChips => [
+    (Icons.grid_view_rounded, MachineData.allCategory),
+    for (final name in _categories) (_iconFor(name), name),
+  ];
 
   List<String> get categories => _categories;
+
+  /// Fills the configuration without a round trip. Tests only.
+  @visibleForTesting
+  void seed({List<String> categories = const []}) {
+    _categories = categories;
+    _loadedOnce = true;
+    _fetchedAt = DateTime.now();
+  }
 
   /// Pulls the latest configuration, skipping the call while it is fresh.
   Future<void> load({bool force = false}) async {

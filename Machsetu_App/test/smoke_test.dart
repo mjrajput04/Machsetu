@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:machsetu_app/core/routes/app_routes.dart';
+import 'package:machsetu_app/core/services/catalogue_service.dart';
 import 'package:machsetu_app/core/services/session_store.dart';
 import 'package:machsetu_app/core/services/settings_service.dart';
 import 'package:machsetu_app/core/services/shell_tabs.dart';
@@ -13,6 +14,8 @@ import 'package:machsetu_app/features/checkout/checkout_screen.dart';
 import 'package:machsetu_app/features/home/data/machines.dart';
 import 'package:machsetu_app/features/home/main_shell.dart';
 import 'package:machsetu_app/features/listings/machine_listing_screen.dart';
+import 'package:machsetu_app/features/notifications/data/notification_store.dart';
+import 'package:machsetu_app/features/notifications/data/notifications.dart';
 import 'package:machsetu_app/features/notifications/notifications_screen.dart';
 import 'package:machsetu_app/features/orders/data/order.dart';
 import 'package:machsetu_app/features/orders/order_success_screen.dart';
@@ -21,6 +24,8 @@ import 'package:machsetu_app/features/orders/orders_screen.dart';
 import 'package:machsetu_app/features/product/data/product.dart';
 import 'package:machsetu_app/features/product/product_detail_screen.dart';
 import 'package:machsetu_app/features/product/widgets/product_hero.dart';
+import 'package:machsetu_app/features/profile/data/inquiries.dart';
+import 'package:machsetu_app/features/profile/data/inquiry_store.dart';
 import 'package:machsetu_app/features/profile/edit_profile_screen.dart';
 import 'package:machsetu_app/features/profile/my_inquiries_screen.dart';
 import 'package:machsetu_app/features/profile/profile_screen.dart';
@@ -41,6 +46,27 @@ void main() {
     // Both are process-wide singletons — reset so tests stay independent.
     ShellTabs.go(ShellTabs.home);
     CartStore.instance.clear();
+
+    // The app ships no sample data any more, so a test that needs a
+    // catalogue, an inquiry or an alert to work with puts one there itself.
+    CatalogueService.instance.seed(MachineData.all);
+    SettingsService.instance.seed(
+      categories: [
+        for (final (_, name) in MachineData.categories)
+          if (name != MachineData.allCategory) name,
+      ],
+    );
+    InquiryStore.instance.seed(InquiryData.all);
+    NotificationStore.instance.seed(
+      today: NotificationData.today,
+      earlier: NotificationData.earlier,
+    );
+    OrderStore.instance
+      ..clear()
+      ..seedDemoOrders();
+    SellStore.instance
+      ..clear()
+      ..seedDemoListings();
     final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
         .views
         .first;
@@ -61,12 +87,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('RECENT SEARCHES'), findsOneWidget);
-    expect(find.text('DMG Mori CMX 1100 V'), findsOneWidget);
-    expect(
-      find.text('142 results for "Vertical Machining Center"'),
-      findsOneWidget,
-    );
-    expect(find.text('₹1,15,00,000'), findsOneWidget);
+    // Search cards are built from the same catalogue the home tab shows.
+    expect(find.text('DMG MORI DMU 50'), findsOneWidget);
+    expect(find.text('₹1,45,00,000'), findsOneWidget);
   });
 
   testWidgets('View All Manifests opens the machine listing page', (
@@ -96,9 +119,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(MachineListingScreen), findsOneWidget);
-    expect(find.text('CNC Machines'), findsOneWidget);
-    expect(find.text('Haas VF-2'), findsOneWidget);
-    expect(find.text('₹57,50,000'), findsOneWidget);
+    expect(find.text('DMG MORI DMU 50'), findsOneWidget);
+    expect(find.text('₹1,45,00,000'), findsOneWidget);
 
     // The chip row scrolls horizontally, so bring "Lathes" on screen first.
     await tester.dragUntilVisible(
@@ -113,9 +135,10 @@ void main() {
     await tester.tap(find.text('Lathes'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quick Turn 250'), findsOneWidget);
-    expect(find.text('Puma GT2100'), findsOneWidget);
-    expect(find.text('Haas VF-2'), findsNothing);
+    expect(find.text('Mazak QUICK TURN 250MY'), findsOneWidget);
+    expect(find.text('Doosan PUMA 2600SY'), findsOneWidget);
+    // Filtering to Lathes drops every machining centre.
+    expect(find.text('DMG MORI DMU 50'), findsNothing);
 
     await tester.dragUntilVisible(
       find.text('Load More Results'),
@@ -143,16 +166,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ProductDetailScreen), findsOneWidget);
-    // Header carries the tapped card's own data through.
-    expect(find.text('Haas VF-2'), findsOneWidget);
+    // Header carries the tapped card's own data through — the first card on
+    // the listing page is the first machine in the catalogue.
+    expect(find.text('DMG MORI DMU 50'), findsOneWidget);
     // The brand line is a Text.rich, so it needs rich-text matching. It also
     // repeats in the Machine Details table, hence findsWidgets.
     expect(
-      find.textContaining('Haas Automation', findRichText: true),
+      find.textContaining('DMG MORI', findRichText: true),
       findsWidgets,
     );
-    expect(find.text('₹57,50,000'), findsOneWidget);
-    expect(find.text('PRECISION SERIES'), findsOneWidget);
+    expect(find.text('₹1,45,00,000'), findsOneWidget);
     expect(find.byType(ProductHero), findsOneWidget);
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Add to Cart'));

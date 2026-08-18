@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -19,10 +18,12 @@ class ApiResult {
 
 /// Thin HTTP client for the MachSetu API.
 ///
-/// A release build talks to the live marketplace; a debug build talks to the
-/// admin panel running on the developer's own machine. Either can be pointed
-/// somewhere else at build time:
-///   flutter run --dart-define=API_BASE_URL=http://192.168.1.5:3000
+/// Every build — debug or release — talks to the live marketplace, so an APK
+/// handed to anyone works the moment it is installed. Point it somewhere else
+/// only when you mean to:
+///
+///   flutter run --dart-define=API_BASE_URL=http://localhost:3000
+///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000   (emulator)
 class ApiClient {
   ApiClient._();
 
@@ -30,23 +31,11 @@ class ApiClient {
 
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
-  /// The deployed marketplace — what every shipped build points at.
+  /// The deployed marketplace.
   static const String production = 'https://machsetu.com';
 
-  static String get baseUrl {
-    if (_override.isNotEmpty) return _override;
-    if (!kDebugMode) return production;
-
-    // Debug only. Android emulators reach the host machine on 10.0.2.2,
-    // never on localhost.
-    if (kIsWeb) return 'http://localhost:3000';
-    try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:3000';
-    } catch (_) {
-      // Platform is unavailable on some targets; fall through to localhost.
-    }
-    return 'http://localhost:3000';
-  }
+  static String get baseUrl =>
+      _override.isEmpty ? production : _override;
 
   static const Duration _timeout = Duration(seconds: 20);
 

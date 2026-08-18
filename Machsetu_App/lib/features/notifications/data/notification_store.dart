@@ -9,14 +9,14 @@ import 'notifications.dart';
 ///
 /// Rows are written by the server whenever something happens — an order
 /// placed, a listing approved, a quote received — so the feed is a record of
-/// real events. The bundled sample list stands in while offline.
+/// real events.
 class NotificationStore extends ChangeNotifier {
   NotificationStore._();
 
   static final NotificationStore instance = NotificationStore._();
 
-  List<AppNotification> _today = NotificationData.today;
-  List<AppNotification> _earlier = NotificationData.earlier;
+  List<AppNotification> _today = const [];
+  List<AppNotification> _earlier = const [];
   int _unread = 0;
   bool _loading = false;
   bool _loadedOnce = false;
@@ -25,6 +25,18 @@ class NotificationStore extends ChangeNotifier {
   List<AppNotification> get earlier => _earlier;
   int get unread => _unread;
   bool get isLive => _loadedOnce;
+
+  /// Fills the feed without a round trip. Tests only.
+  @visibleForTesting
+  void seed({
+    List<AppNotification> today = const [],
+    List<AppNotification> earlier = const [],
+  }) {
+    _today = today;
+    _earlier = earlier;
+    _unread = today.where((n) => n.unread).length;
+    _loadedOnce = true;
+  }
 
   Future<void> load({bool force = false}) async {
     final token = await SessionStore.instance.token();

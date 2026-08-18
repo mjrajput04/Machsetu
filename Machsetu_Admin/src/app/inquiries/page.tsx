@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useApi, usePolling } from "@/lib/api";
 import type { Inquiry, InquiryStatus } from "@/lib/types";
 import { relativeDate, rupees } from "@/lib/format";
@@ -174,10 +175,18 @@ export default function InquiriesPage() {
               {rows.map((i) => (
                 <tr key={i.id} className="hover:bg-canvas/60">
                   <Td className="font-bold whitespace-nowrap text-navy-800">
-                    {i.id}
+                    <Link
+                      href={`/inquiries/${i.id}`}
+                      className="hover:text-accent-600"
+                    >
+                      {i.id}
+                    </Link>
                   </Td>
                   <Td>
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/inquiries/${i.id}`}
+                      className="group flex items-center gap-3"
+                    >
                       <div className="relative h-11 w-14 shrink-0 overflow-hidden rounded-md bg-navy-50">
                         {i.image && (
                           <Image
@@ -190,7 +199,7 @@ export default function InquiriesPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-navy-800">
+                        <p className="truncate font-semibold text-navy-800 group-hover:text-accent-600">
                           {i.machine}
                         </p>
                         <p className="truncate text-xs text-muted">{i.brand}</p>
@@ -205,7 +214,7 @@ export default function InquiriesPage() {
                           ))}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2.5">
@@ -245,9 +254,11 @@ export default function InquiriesPage() {
                     {relativeDate(i.lastActivity)}
                   </Td>
                   <Td className="text-right">
-                    <Button size="sm" variant="secondary">
-                      Open
-                    </Button>
+                    <Link href={`/inquiries/${i.id}`}>
+                      <Button size="sm" variant="secondary">
+                        Open
+                      </Button>
+                    </Link>
                   </Td>
                 </tr>
               ))}
