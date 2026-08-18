@@ -15,8 +15,9 @@ module.exports = {
       script: "node_modules/next/dist/bin/next",
       args: "start --port 3000 --hostname 127.0.0.1",
 
-      // Two workers on a 2-vCPU box: one serves while the other restarts.
-      instances: 2,
+      // One worker — MongoDB shares this box, so the spare vCPU is better
+      // left to it than to a second Next process.
+      instances: 1,
       exec_mode: "cluster",
 
       // Nginx is the only thing that talks to these ports.
