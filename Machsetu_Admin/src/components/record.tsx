@@ -189,6 +189,12 @@ export function SpecsCard({ specs }: { specs: MachineSpecs }) {
   );
 }
 
+/** Three-letter badge for the file behind a document row. */
+function fileKind(url: string): string {
+  const ext = url.split(".").pop()?.toUpperCase() ?? "";
+  return ext.length > 0 && ext.length <= 4 ? ext : "FILE";
+}
+
 export function DocumentsCard({ documents }: { documents: DocumentFile[] }) {
   return (
     <Card>
@@ -200,13 +206,19 @@ export function DocumentsCard({ documents }: { documents: DocumentFile[] }) {
         <p className="text-sm text-muted">Nothing attached.</p>
       ) : (
         <ul className="space-y-2">
-          {documents.map((d) => (
+          {documents.map((d, index) => (
             <li
-              key={d.name}
+              key={`${d.name}-${index}`}
               className="flex items-center gap-3 rounded-lg border border-line p-2.5"
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-rose-50 text-[10px] font-bold text-rose-600">
-                PDF
+              <span
+                className={
+                  d.url
+                    ? "grid h-9 w-9 shrink-0 place-items-center rounded-md bg-rose-50 text-[10px] font-bold text-rose-600"
+                    : "grid h-9 w-9 shrink-0 place-items-center rounded-md bg-canvas text-[10px] font-bold text-faint"
+                }
+              >
+                {d.url ? fileKind(d.url) : "—"}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-navy-800">
@@ -216,9 +228,15 @@ export function DocumentsCard({ documents }: { documents: DocumentFile[] }) {
                   {d.size} · {d.category} · {d.uploadedOn}
                 </p>
               </div>
-              <Button size="sm" variant="ghost">
-                Download
-              </Button>
+              {d.url ? (
+                <a href={d.url} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="ghost">
+                    Open
+                  </Button>
+                </a>
+              ) : (
+                <span className="px-2 text-xs text-faint">No file</span>
+              )}
             </li>
           ))}
         </ul>

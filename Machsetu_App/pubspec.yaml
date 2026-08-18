@@ -50,6 +50,9 @@ dependencies:
   # Lets sellers attach invoices and certificates to a listing.
   file_picker: ^8.1.4
 
+  # Opens an attached document in the phone's own PDF or photo viewer.
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

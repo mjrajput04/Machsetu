@@ -12,10 +12,28 @@ class MachineSpec {
   final String value;
 }
 
+/// One file the seller attached to a listing.
+class MachineDocument {
+  const MachineDocument({
+    required this.title,
+    required this.meta,
+    required this.url,
+  });
+
+  final String title;
+
+  /// "PDF • 1.4 MB • Purchase Invoice", as the card prints it.
+  final String meta;
+  final String url;
+
+  bool get isPdf => url.toLowerCase().endsWith('.pdf');
+}
+
 class Machine {
   const Machine({
     required this.title,
     this.id = '',
+    this.documents = const [],
     required this.brand,
     required this.subtitle,
     required this.category,
@@ -39,6 +57,9 @@ class Machine {
 
   /// Catalogue id, e.g. `MS-1001`. Empty for the bundled demo entries.
   final String id;
+
+  /// Invoices, manuals and certificates the seller uploaded.
+  final List<MachineDocument> documents;
 
   final String title;
 

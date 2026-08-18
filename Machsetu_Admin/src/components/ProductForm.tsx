@@ -13,7 +13,7 @@ import {
   WORKING_STATUS,
 } from "@/lib/options";
 import { api, useApi } from "@/lib/api";
-import type { Product } from "@/lib/types";
+import type { DocumentFile, Product } from "@/lib/types";
 import { Button, Card, CardHeader, PageHeader, cx } from "@/components/ui";
 
 /**
@@ -220,9 +220,7 @@ export default function ProductForm({
     product?.categories ?? [],
   );
   const [photos, setPhotos] = useState<string[]>(product?.requiredPhotos ?? []);
-  const [docs, setDocs] = useState<string[]>(
-    (product?.documents ?? []).map((d) => d.category),
-  );
+  const [docs, setDocs] = useState<DocumentFile[]>(product?.documents ?? []);
   const [images, setImages] = useState<string[]>(product?.images ?? []);
   const [condition, setCondition] = useState(product?.condition || "Good");
   const [working, setWorking] = useState(
@@ -318,12 +316,7 @@ export default function ProductForm({
       overview: values.description ? [values.description] : [],
       additionalRemarks: values.additionalRemarks,
       requiredPhotos: photos,
-      documents: docs.map((category) => ({
-        name: category,
-        size: "—",
-        category,
-        uploadedOn: new Date().toISOString().slice(0, 10),
-      })),
+      documents: docs,
       sellerInfo: {
         name: values.sellerName,
         company: values.companyName,
@@ -889,18 +882,25 @@ export default function ProductForm({
           {/* ---- Section 5 ------------------------------------------- */}
           <Card>
             <CardHeader
-              title="5 · Documents Checklist"
-              subtitle="Attached paperwork increases buyer trust"
+              title="5 · Documents"
+              subtitle="Attached paperwork shows on the buyer's product page"
             />
-            <div className="grid gap-2 sm:grid-cols-2">
-              {DOCUMENT_TYPES.map((d) => (
-                <Check
-                  key={d}
-                  checked={docs.includes(d)}
-                  onChange={() => toggle(docs, setDocs, d)}
-                >
-                  {d}
-                </Check>
+            <div className="grid gap-2">
+              {DOCUMENT_TYPES.map((type) => (
+                <DocumentRow
+                  key={type}
+                  type={type}
+                  file={docs.find((d) => d.category === type) ?? null}
+                  onAttach={(file) =>
+                    setDocs((prev) => [
+                      ...prev.filter((d) => d.category !== type),
+                      file,
+                    ])
+                  }
+                  onRemove={() =>
+                    setDocs((prev) => prev.filter((d) => d.category !== type))
+                  }
+                />
               ))}
             </div>
           </Card>
@@ -1047,6 +1047,122 @@ export default function ProductForm({
         </div>
       </form>
     </>
+  );
+}
+
+/** Human-readable size for a file the desk just picked. */
+function readableSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
+/**
+ * One paperwork type, with the file attached to it.
+ *
+ * Ticking a box used to be the whole feature; the buyer's product page now
+ * links to the actual document, so the file has to come with it.
+ */
+function DocumentRow({
+  type,
+  file,
+  onAttach,
+  onRemove,
+}: {
+  type: string;
+  file: DocumentFile | null;
+  onAttach: (file: DocumentFile) => void;
+  onRemove: () => void;
+}) {
+  const picker = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function pick(files: FileList | null) {
+    const chosen = files?.[0];
+    if (!chosen) return;
+
+    setUploading(true);
+    try {
+      const result = await api.upload([chosen]);
+      onAttach({
+        name: chosen.name,
+        size: readableSize(chosen.size),
+        category: type,
+        uploadedOn: new Date().toISOString().slice(0, 10),
+        url: result.files[0].url,
+      });
+    } catch (error) {
+      window.alert((error as Error).message);
+    } finally {
+      setUploading(false);
+      if (picker.current) picker.current.value = "";
+    }
+  }
+
+  return (
+    <div
+      className={cx(
+        "flex flex-wrap items-center gap-3 rounded-lg border px-3.5 py-2.5",
+        file ? "border-accent-500 bg-accent-50" : "border-line bg-white",
+      )}
+    >
+      <input
+        ref={picker}
+        type="file"
+        accept=".pdf,image/*"
+        hidden
+        onChange={(e) => pick(e.target.files)}
+      />
+
+      <span
+        className={cx(
+          "grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white",
+          file ? "bg-accent-500" : "bg-slate-300",
+        )}
+      >
+        {file ? "✓" : ""}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p
+          className={cx(
+            "truncate text-sm",
+            file ? "font-semibold text-accent-700" : "text-ink",
+          )}
+        >
+          {type}
+        </p>
+        {file && (
+          <p className="truncate text-xs text-muted">
+            {file.name} · {file.size}
+            {file.url ? "" : " · not uploaded"}
+          </p>
+        )}
+      </div>
+
+      {file?.url && (
+        <a
+          href={file.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-semibold text-navy-700 underline"
+        >
+          View
+        </a>
+      )}
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={uploading}
+        onClick={() => picker.current?.click()}
+      >
+        {uploading ? "Uploading…" : file ? "Replace" : "Attach file"}
+      </Button>
+      {file && (
+        <Button size="sm" variant="ghost" onClick={onRemove}>
+          Remove
+        </Button>
+      )}
+    </div>
   );
 }
 

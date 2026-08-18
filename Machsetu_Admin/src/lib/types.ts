@@ -71,6 +71,8 @@ export interface DocumentFile {
   size: string;
   category: string;
   uploadedOn: string;
+  /** Where the file is stored, e.g. /uploads/invoice-ms1a2b.pdf. */
+  url?: string;
 }
 
 /** Section 7 — filled by the inspector after a site visit. */

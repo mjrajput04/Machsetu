@@ -183,6 +183,27 @@ Listing _toListing(Machine machine) => Listing(
   image: machine.image,
 );
 
+/// Attached paperwork, skipping any row that has no file behind it.
+List<MachineDocument> _documents(dynamic value) {
+  if (value is! List) return const [];
+
+  return [
+    for (final entry in value.whereType<Map<String, dynamic>>())
+      if (_text(entry['url']).isNotEmpty)
+        MachineDocument(
+          title: _text(entry['name']).isEmpty
+              ? _text(entry['category'])
+              : _text(entry['name']),
+          meta: [
+            _text(entry['url']).toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMAGE',
+            _text(entry['size']),
+            _text(entry['category']),
+          ].where((v) => v.isNotEmpty).join(' • '),
+          url: _text(entry['url']),
+        ),
+  ];
+}
+
 Machine _toMachine(Map<String, dynamic> json) {
   final details = _map(json['details']);
   final specs = _map(json['specs']);
@@ -191,6 +212,7 @@ Machine _toMachine(Map<String, dynamic> json) {
 
   return Machine(
     id: _text(json['id']),
+    documents: _documents(json['documents']),
     title: _text(json['title']),
     brand: _text(json['brand']),
     subtitle: _text(json['type']),

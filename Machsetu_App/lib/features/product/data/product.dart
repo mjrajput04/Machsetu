@@ -31,12 +31,17 @@ class ProductDocument {
     required this.meta,
     required this.color,
     required this.icon,
+    this.url = '',
   });
 
   final String title;
   final String meta;
   final Color color;
   final IconData icon;
+
+  /// Where the file lives, e.g. /uploads/invoice-ms1a2b.pdf. Empty on the
+  /// sample entries that have no file behind them.
+  final String url;
 }
 
 /// Everything the product detail page renders.
@@ -292,12 +297,26 @@ class ProductCatalog {
       overview: machine.overview,
       tags: machine.features,
       documents: [
-        ProductDocument(
-          title: "Operator's Manual — ${machine.title}",
-          meta: 'PDF • 14.5 MB • ${machine.brand}',
-          color: const Color(0xFFDC2626),
-          icon: Icons.picture_as_pdf_outlined,
-        ),
+        // Whatever the seller actually attached, in the order it was filed.
+        for (final doc in machine.documents)
+          ProductDocument(
+            title: doc.title,
+            meta: doc.meta,
+            color: doc.isPdf
+                ? const Color(0xFFDC2626)
+                : const Color(0xFF2563EB),
+            icon: doc.isPdf
+                ? Icons.picture_as_pdf_outlined
+                : Icons.image_outlined,
+            url: doc.url,
+          ),
+        if (machine.documents.isEmpty)
+          ProductDocument(
+            title: "Operator's Manual — ${machine.title}",
+            meta: 'PDF • 14.5 MB • ${machine.brand}',
+            color: const Color(0xFFDC2626),
+            icon: Icons.picture_as_pdf_outlined,
+          ),
         const ProductDocument(
           title: 'Technical Audit Report',
           meta: 'PDF • 3.2 MB • MachSetu verified',

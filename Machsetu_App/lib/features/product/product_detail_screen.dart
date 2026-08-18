@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/routes/app_routes.dart';
+import '../../core/services/api_client.dart';
 import '../../core/services/shell_tabs.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_image.dart';
@@ -59,6 +61,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
       curve: Curves.easeOutCubic,
       alignment: 0.05,
     );
+  }
+
+  /// Hands an attached document to whatever the phone opens PDFs with.
+  Future<void> _openDocument(ProductDocument doc) async {
+    if (doc.url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No file attached to ${doc.title}')),
+      );
+      return;
+    }
+
+    final target = doc.url.startsWith('http')
+        ? doc.url
+        : '${ApiClient.baseUrl}${doc.url}';
+    final opened = await launchUrl(
+      Uri.parse(target),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open that document')),
+      );
+    }
   }
 
   void _todo(String label) {
@@ -122,7 +147,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                   _DocumentsSection(
                     key: _documentsKey,
                     product: product,
-                    onDownload: (title) => _todo(title),
+                    onDownload: _openDocument,
                   ),
                   const SizedBox(height: 32),
                 ],
@@ -598,7 +623,7 @@ class _DocumentsSection extends StatelessWidget {
   });
 
   final Product product;
-  final ValueChanged<String> onDownload;
+  final ValueChanged<ProductDocument> onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -651,7 +676,7 @@ class _DocumentsSection extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => onDownload(doc.title),
+                  onPressed: () => onDownload(doc),
                   icon: const Icon(
                     Icons.download_outlined,
                     size: 20,
