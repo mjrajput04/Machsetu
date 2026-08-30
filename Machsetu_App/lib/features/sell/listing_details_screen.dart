@@ -5,18 +5,15 @@ import '../../core/widgets/app_image.dart';
 import 'data/sell_store.dart';
 import 'submission_status_screen.dart';
 import 'widgets/sell_widgets.dart';
+import '../../core/services/api_client.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/utils/launchers.dart';
 
 /// Seller-side view of one listing: photos, specs, progress and documents.
 class ListingDetailsScreen extends StatelessWidget {
   const ListingDetailsScreen({super.key, required this.listing});
 
   final SellListing listing;
-
-  void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -358,7 +355,7 @@ class ListingDetailsScreen extends StatelessWidget {
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => _todo(context, doc.name),
+                                onPressed: () => _openDocument(context, doc),
                                 icon: const Icon(
                                   Icons.download_outlined,
                                   size: 19,
@@ -396,7 +393,7 @@ class ListingDetailsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(9),
                     ),
                   ),
-                  onPressed: () => _todo(context, 'Edit listing'),
+                  onPressed: () => _requestEdit(context),
                   icon: const Icon(Icons.edit_outlined, size: 17),
                   label: const Text(
                     'Edit Listing',
@@ -415,7 +412,13 @@ class ListingDetailsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(9),
                     ),
                   ),
-                  onPressed: () => _todo(context, 'Contact broker'),
+                  onPressed: () => Launchers.whatsapp(
+                    context,
+                    SettingsService.instance.support.phone,
+                    message:
+                        'Hello MachSetu, about my listing '
+                        '${listing.reference} (${listing.title}).',
+                  ),
                   icon: const Icon(Icons.support_agent_outlined, size: 18),
                   label: const Text(
                     'Contact Broker',
@@ -753,4 +756,28 @@ class _Fact extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Opens an attached document in whatever viewer the phone has.
+Future<void> _openDocument(BuildContext context, SellDocument doc) async {
+  if (doc.url.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No file was attached to ${doc.name}')),
+    );
+    return;
+  }
+  final target = doc.url.startsWith('http')
+      ? doc.url
+      : '${ApiClient.baseUrl}${doc.url}';
+  await Launchers.url(context, target);
+}
+
+/// A submitted listing is edited by the sourcing desk, so this opens the
+/// channel rather than pretending the app can rewrite a live record.
+Future<void> _requestEdit(BuildContext context) async {
+  await Launchers.whatsapp(
+    context,
+    SettingsService.instance.support.phone,
+    message: 'Hello MachSetu, I would like to change details on my listing.',
+  );
 }

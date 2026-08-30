@@ -11,6 +11,9 @@ import '../../core/widgets/machsetu_app_bar.dart';
 import '../product/data/product.dart';
 import 'data/machines.dart';
 import 'widgets/machine_cards.dart';
+import '../../core/services/machine_filter.dart';
+import '../../core/services/shell_tabs.dart';
+import '../../core/widgets/filter_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +24,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _category = 0;
+
+  /// Filters applied to the featured list from the search bar's tune icon.
+  MachineFilter _filter = const MachineFilter();
   final _search = TextEditingController();
   final _catalogue = CatalogueService.instance;
   final _settings = SettingsService.instance;
@@ -46,10 +52,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
+  Future<void> _openFilters() async {
+    final updated = await showFilterSheet(
+      context: context,
+      current: _filter,
+      machines: _catalogue.all,
+    );
+    if (updated != null && mounted) setState(() => _filter = updated);
   }
 
   void _openProduct(Machine machine) {
@@ -64,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Chips come from the admin panel's Settings page; "All" is always first.
     final chips = _settings.categoryChips;
     final selected = _category.clamp(0, chips.length - 1);
-    final featured = _catalogue.forCategory(chips[selected].$2);
+    final featured = _filter.apply(_catalogue.forCategory(chips[selected].$2));
 
     return Scaffold(
       appBar: const MachSetuAppBar(),
@@ -98,7 +107,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _SearchBar(controller: _search, onFilter: () => _todo('Filters')),
+            _SearchBar(
+              controller: _search,
+              onFilter: _openFilters,
+              onSubmit: (_) => ShellTabs.go(ShellTabs.search),
+            ),
             const SizedBox(height: 18),
             _PromoCarousel(
               slides: _settings.heroSlides,
@@ -236,16 +249,22 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.controller, required this.onFilter});
+  const _SearchBar({
+    required this.controller,
+    required this.onFilter,
+    required this.onSubmit,
+  });
 
   final TextEditingController controller;
   final VoidCallback onFilter;
+  final ValueChanged<String> onSubmit;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
       textInputAction: TextInputAction.search,
+      onSubmitted: onSubmit,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         hintText: 'Search machines, specs, or serial',

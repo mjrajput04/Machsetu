@@ -45,7 +45,10 @@ class SessionStore {
     if (refresh) {
       final auth = prefs.getString(_keyToken);
       if (auth != null && auth.isNotEmpty) {
-        final result = await ApiClient.instance.get('/api/profile', token: auth);
+        final result = await ApiClient.instance.get(
+          '/api/profile',
+          token: auth,
+        );
         if (result.ok) {
           final fresh = result.data['user'] as Map<String, dynamic>;
           await prefs.setString(_keyUser, jsonEncode(fresh));

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/services/session_store.dart';
 import '../../core/services/upload_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/app_image.dart';
-import 'data/profile_data.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -20,15 +20,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _name = TextEditingController();
-  final _role = TextEditingController();
-  final _company = TextEditingController();
   final _email = TextEditingController();
   final _phone = TextEditingController();
-  final _gstin = TextEditingController();
-  final _address = TextEditingController();
-  final _city = TextEditingController();
-  final _state = TextEditingController();
-  final _zip = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -43,18 +36,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [
-      _name,
-      _role,
-      _company,
-      _email,
-      _phone,
-      _gstin,
-      _address,
-      _city,
-      _state,
-      _zip,
-    ]) {
+    for (final c in [_name, _email, _phone]) {
       c.dispose();
     }
     super.dispose();
@@ -65,16 +47,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = await SessionStore.instance.user(refresh: true);
     if (!mounted) return;
     setState(() {
-      _name.text = user.name.isEmpty ? ProfileData.fallbackName : user.name;
-      _role.text = user.role.isEmpty ? ProfileData.role : user.role;
-      _company.text = user.company.isEmpty ? ProfileData.company : user.company;
+      _name.text = user.name;
       _email.text = user.email;
       _phone.text = user.phone;
-      _gstin.text = user.gstin;
-      _address.text = user.address;
-      _city.text = user.city;
-      _state.text = user.state;
-      _zip.text = user.zip;
       _avatar = user.avatar;
       _loading = false;
     });
@@ -88,19 +63,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
+    // Only the fields this form owns are sent. Email is read-only and is
+    // echoed back unchanged so the API keeps the account key stable.
     await SessionStore.instance.saveProfile(
       SessionUser(
         name: _name.text.trim(),
         email: _email.text.trim(),
         phone: _phone.text.trim(),
         avatar: _avatar,
-        role: _role.text.trim(),
-        company: _company.text.trim(),
-        gstin: _gstin.text.trim().toUpperCase(),
-        address: _address.text.trim(),
-        city: _city.text.trim(),
-        state: _state.text.trim(),
-        zip: _zip.text.trim(),
       ),
     );
     if (!mounted) return;
@@ -227,27 +197,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     const SizedBox(height: 26),
                     _Group(
                       icon: Icons.person_outline,
-                      title: 'Personal Details',
+                      title: 'Your Details',
                       children: [
                         _Field(
                           label: 'Full Name',
-                          hint: 'Marcus V. Sterling',
+                          hint: 'Your name',
                           controller: _name,
                           validator: Validators.name,
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                        _Field(
-                          label: 'Designation',
-                          hint: 'Senior Procurement Director',
-                          controller: _role,
                           textCapitalization: TextCapitalization.words,
                         ),
                         _Field(
                           label: 'Email Address',
                           hint: 'you@company.com',
                           controller: _email,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: Validators.email,
+                          readOnly: true,
+                          note:
+                              'Your email is your login and cannot be '
+                              'changed here.',
                         ),
                         _Field(
                           label: 'Mobile Number',
@@ -264,84 +230,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    _Group(
-                      icon: Icons.business_outlined,
-                      title: 'Company',
-                      children: [
-                        _Field(
-                          label: 'Company Name',
-                          hint: 'Aerotech Solutions Inc.',
-                          controller: _company,
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                        _Field(
-                          label: 'GST / Tax Identification Number',
-                          hint: 'GSTIN-9922883311',
-                          controller: _gstin,
-                          textCapitalization: TextCapitalization.characters,
-                          validator: (v) {
-                            final value = (v ?? '').trim();
-                            if (value.isEmpty) return null;
-                            return value.length < 8
-                                ? 'Enter a valid GSTIN'
-                                : null;
-                          },
-                          isLast: true,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _Group(
-                      icon: Icons.place_outlined,
-                      title: 'Delivery Address',
-                      children: [
-                        _Field(
-                          label: 'Street Address / Warehouse Unit',
-                          hint: 'Plot 44, Industrial Area Phase II',
-                          controller: _address,
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _Field(
-                                label: 'City',
-                                hint: 'Pune',
-                                controller: _city,
-                                textCapitalization: TextCapitalization.words,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: _Field(
-                                label: 'State',
-                                hint: 'Maharashtra',
-                                controller: _state,
-                                textCapitalization: TextCapitalization.words,
-                              ),
-                            ),
-                          ],
-                        ),
-                        _Field(
-                          label: 'PIN Code',
-                          hint: '411001',
-                          controller: _zip,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(6),
-                          ],
-                          validator: (v) {
-                            final value = (v ?? '').trim();
-                            if (value.isEmpty) return null;
-                            return value.length < 6
-                                ? 'Enter a valid 6-digit PIN'
-                                : null;
-                          },
-                          isLast: true,
-                        ),
-                      ],
+                    // Delivery sites live on their own page — a user can have
+                    // several, which a single set of fields cannot express.
+                    _AddressesLink(
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.myAddresses),
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
@@ -533,6 +427,8 @@ class _Field extends StatelessWidget {
     this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
     this.isLast = false,
+    this.readOnly = false,
+    this.note,
   });
 
   final String label;
@@ -543,6 +439,12 @@ class _Field extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
   final bool isLast;
+
+  /// Shown but not editable — e.g. the email, which is the account key.
+  final bool readOnly;
+
+  /// Small caption under the field explaining why it is locked.
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -562,24 +464,33 @@ class _Field extends StatelessWidget {
           TextFormField(
             controller: controller,
             validator: validator,
+            readOnly: readOnly,
+            enableInteractiveSelection: !readOnly,
             keyboardType: keyboardType,
             inputFormatters: inputFormatters,
             textCapitalization: textCapitalization,
             textInputAction: isLast
                 ? TextInputAction.done
                 : TextInputAction.next,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14.5,
-              color: AppColors.textPrimary,
+              color: readOnly ? AppColors.textSecondary : AppColors.textPrimary,
             ),
             decoration: InputDecoration(
               hintText: hint,
+              suffixIcon: readOnly
+                  ? const Icon(
+                      Icons.lock_outline,
+                      size: 17,
+                      color: AppColors.textMuted,
+                    )
+                  : null,
               hintStyle: const TextStyle(
                 fontSize: 14.5,
                 color: AppColors.textMuted,
               ),
               filled: true,
-              fillColor: AppColors.surface,
+              fillColor: readOnly ? AppColors.fieldFill : AppColors.surface,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
@@ -592,6 +503,16 @@ class _Field extends StatelessWidget {
               focusedErrorBorder: _border(AppColors.danger, width: 1.4),
             ),
           ),
+          if (note != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              note!,
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -601,6 +522,77 @@ class _Field extends StatelessWidget {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
       borderSide: BorderSide(color: color, width: width),
+    );
+  }
+}
+
+/// Sends the user to the addresses page — they can save more than one, so the
+/// profile form deliberately does not hold a single address.
+class _AddressesLink extends StatelessWidget {
+  const _AddressesLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 34,
+              width: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.brandBlue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.location_on_outlined,
+                size: 18,
+                color: AppColors.brandBlue,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'My Addresses',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Manage your delivery and installation sites',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: AppColors.textMuted,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

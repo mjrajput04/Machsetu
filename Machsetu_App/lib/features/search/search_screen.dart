@@ -4,10 +4,13 @@ import '../../core/routes/app_routes.dart';
 import '../../core/services/catalogue_service.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/shell_tabs.dart';
 import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import '../product/data/product.dart';
 import 'data/search_results.dart';
+import '../../core/services/machine_filter.dart';
+import '../../core/widgets/filter_sheet.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -17,7 +20,12 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _query = TextEditingController(text: SearchData.defaultQuery);
+  // Starts empty: the box now really filters, so a canned query would hide
+  // most of the catalogue the moment the tab opens.
+  final _query = TextEditingController();
+
+  /// Live filter — the query box feeds it, the sheet edits the rest.
+  MachineFilter _filter = const MachineFilter();
   final _focus = FocusNode();
   final _catalogue = CatalogueService.instance;
 
@@ -67,12 +75,6 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
-
   void _applyRecent(String term) {
     _query
       ..text = term
@@ -80,13 +82,32 @@ class _SearchScreenState extends State<SearchScreen> {
     _focus.unfocus();
   }
 
+  Future<void> _openFilters() async {
+    final updated = await showFilterSheet(
+      context: context,
+      current: _filter.copyWith(query: _query.text.trim()),
+      machines: _catalogue.all,
+    );
+    if (updated != null && mounted) setState(() => _filter = updated);
+  }
+
+  Future<void> _openSort() async {
+    final sort = await showSortSheet(context: context, current: _filter.sort);
+    if (sort != null && mounted) {
+      setState(() => _filter = _filter.copyWith(sort: sort));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = _query.text.trim();
+    // The typed query is part of the filter, so one pipeline drives the list.
+    final machines = _filter.copyWith(query: query).apply(_catalogue.all);
+    final results = machines.map(_catalogue.searchListingFor).toList();
 
     return Scaffold(
       appBar: MachSetuAppBar(
-        onAvatarTap: () => _todo('Profile'),
+        onAvatarTap: () => ShellTabs.go(ShellTabs.profile),
         showAvatar: true,
         initials: _initials,
       ),
@@ -96,11 +117,13 @@ class _SearchScreenState extends State<SearchScreen> {
         heroTag: 'search-filters-fab',
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
-        onPressed: () => _todo('Filters'),
+        onPressed: _openFilters,
         icon: const Icon(Icons.filter_list, size: 20),
-        label: const Text(
-          'Filters',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        label: Text(
+          _filter.activeCount == 0
+              ? 'Filters'
+              : 'Filters (${_filter.activeCount})',
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
       body: ListView(
@@ -113,17 +136,25 @@ class _SearchScreenState extends State<SearchScreen> {
             onRecentTap: _applyRecent,
           ),
           const SizedBox(height: 20),
-          _ResultsHeader(query: query, onSortTap: () => _todo('Sort options')),
+          _ResultsHeader(
+            query: query,
+            count: results.length,
+            sortLabel: _filter.sort.label,
+            onSortTap: _openSort,
+          ),
           const SizedBox(height: 14),
-          for (final listing in _catalogue.searchResults) ...[
-            SearchResultCard(
-              listing: listing,
-              onViewDetails: () => Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.product, arguments: _detailFor(listing)),
-            ),
-            const SizedBox(height: 16),
-          ],
+          if (results.isEmpty)
+            const _NoResults()
+          else
+            for (final listing in results) ...[
+              SearchResultCard(
+                listing: listing,
+                onViewDetails: () => Navigator.of(
+                  context,
+                ).pushNamed(AppRoutes.product, arguments: _detailFor(listing)),
+              ),
+              const SizedBox(height: 16),
+            ],
           const SizedBox(height: 4),
           const _RefineHint(),
         ],
@@ -271,9 +302,16 @@ class _RecentChip extends StatelessWidget {
 }
 
 class _ResultsHeader extends StatelessWidget {
-  const _ResultsHeader({required this.query, required this.onSortTap});
+  const _ResultsHeader({
+    required this.query,
+    required this.count,
+    required this.sortLabel,
+    required this.onSortTap,
+  });
 
   final String query;
+  final int count;
+  final String sortLabel;
   final VoidCallback onSortTap;
 
   @override
@@ -284,8 +322,8 @@ class _ResultsHeader extends StatelessWidget {
         Expanded(
           child: Text(
             query.isEmpty
-                ? '${SearchData.totalResults} results'
-                : '${SearchData.totalResults} results for "$query"',
+                ? '$count result${count == 1 ? '' : 's'}'
+                : '$count result${count == 1 ? '' : 's'} for "$query"',
             style: const TextStyle(
               fontSize: 15,
               height: 1.35,
@@ -305,9 +343,9 @@ class _ResultsHeader extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(width: 6),
-              const Text(
-                'Relevance',
-                style: TextStyle(
+              Text(
+                sortLabel,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.brandBlue,
@@ -482,7 +520,7 @@ class _ListingPhoto extends StatelessWidget {
     return SizedBox(
       height: _height,
       width: double.infinity,
-      child: path == null
+      child: path == null || path.trim().isEmpty
           ? _fallback()
           : AppImage(
               path,
@@ -649,4 +687,40 @@ class _DashedBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Shown when the query and filters between them match nothing.
+class _NoResults extends StatelessWidget {
+  const _NoResults();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+      child: Column(
+        children: [
+          const Icon(Icons.search_off, size: 42, color: AppColors.textMuted),
+          const SizedBox(height: 14),
+          const Text(
+            'No machines match',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Try a different search term, or clear a filter or two.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

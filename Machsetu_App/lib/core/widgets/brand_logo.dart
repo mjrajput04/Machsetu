@@ -103,8 +103,8 @@ class BrandWordmark extends StatelessWidget {
     this.fontSize = 34,
     this.letterSpacing = 1.2,
     this.setuColor = AppColors.accentGlow,
-  })  : machColor = AppColors.steelBright,
-        metallic = true;
+  }) : machColor = AppColors.steelBright,
+       metallic = true;
 
   final double fontSize;
   final double letterSpacing;
@@ -195,9 +195,6 @@ class BrandTagline extends StatelessWidget {
     return FittedBox(fit: BoxFit.scaleDown, child: line);
   }
 
-  Widget _rule() => Container(
-        height: 1.4,
-        width: 16,
-        color: color.withValues(alpha: 0.6),
-      );
+  Widget _rule() =>
+      Container(height: 1.4, width: 16, color: color.withValues(alpha: 0.6));
 }

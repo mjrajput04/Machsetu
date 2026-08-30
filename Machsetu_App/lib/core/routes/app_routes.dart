@@ -10,6 +10,7 @@ import '../../features/checkout/checkout_screen.dart';
 import '../../features/listings/machine_listing_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/profile/edit_profile_screen.dart';
+import '../../features/profile/my_addresses_screen.dart';
 import '../../features/profile/my_inquiries_screen.dart';
 import '../../features/profile/new_inquiry_screen.dart';
 import '../../features/profile/security_screen.dart';
@@ -47,6 +48,7 @@ class AppRoutes {
   static const String terms = '/terms';
   static const String editProfile = '/edit-profile';
   static const String myInquiries = '/my-inquiries';
+  static const String myAddresses = '/my-addresses';
   static const String newInquiry = '/new-inquiry';
   static const String security = '/security';
   static const String sellMachine = '/sell-machine';
@@ -90,6 +92,11 @@ class AppRoutes {
         return _slide(const EditProfileScreen(), settings);
       case myInquiries:
         return _slide(const MyInquiriesScreen(), settings);
+      case myAddresses:
+        return _slide(
+          MyAddressesScreen(selectMode: settings.arguments == true),
+          settings,
+        );
       case newInquiry:
         return _slide(
           NewInquiryScreen(args: settings.arguments as InquiryArgs?),

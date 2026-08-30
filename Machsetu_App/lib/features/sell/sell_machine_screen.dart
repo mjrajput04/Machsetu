@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/services/settings_service.dart';
@@ -12,8 +13,9 @@ import 'widgets/sell_widgets.dart';
 /// Four-step listing wizard mirroring the printed registration form:
 /// Details (seller, machine, commercial, specs) → Images → Docs → Review.
 ///
-/// Nothing is mandatory — a seller can submit a partial listing and the
-/// sourcing desk fills the gaps during verification.
+/// A short list of fields is mandatory (contact, mobile, category, brand,
+/// model, year, location, price and one photo); the rest of the sheet is
+/// optional and the sourcing desk fills the gaps during verification.
 class SellMachineScreen extends StatefulWidget {
   const SellMachineScreen({super.key});
 
@@ -23,15 +25,6 @@ class SellMachineScreen extends StatefulWidget {
 
 class _SellMachineScreenState extends State<SellMachineScreen> {
   static const List<String> steps = ['Details', 'Images', 'Docs', 'Review'];
-
-  /// Stand-ins used when the upload cannot reach the sourcing desk.
-  static const List<String> _samplePhotos = [
-    'assets/images/machines/haas_vf2ss.jpg',
-    'assets/images/machines/dmg_cmx_1100v.jpg',
-    'assets/images/machines/okuma_genos.jpg',
-    'assets/images/machines/mazak_quick_turn.jpg',
-    'assets/images/machines/workshop_banner.jpg',
-  ];
 
   static const Map<String, IconData> _docIcons = {
     'GST Certificate': Icons.article_outlined,
@@ -55,6 +48,10 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
   int _step = 0;
   bool _confirmed = false;
   bool _submitting = false;
+
+  /// Field key -> message, filled by [_validateStep] and cleared as the seller
+  /// fixes each one.
+  Map<String, String> _errors = {};
 
   TextEditingController _ctrl(String key) =>
       _fields.putIfAbsent(key, TextEditingController.new);
@@ -137,8 +134,110 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       ..otherSpecifications = _text('otherSpecifications');
   }
 
+  // ------------------------------------------------------------ validation
+
+  /// The minimum a listing needs before the sourcing desk can work it.
+  /// Everything else on the sheet stays optional and can be filled during
+  /// verification.
+  Map<String, String> _validateDetails() {
+    final errors = <String, String>{};
+
+    void requireText(String key, String message) {
+      if (_text(key).trim().isEmpty) errors[key] = message;
+    }
+
+    requireText('sellerName', 'Contact name is required');
+    requireText('brand', 'Brand is required');
+    requireText('model', 'Model is required');
+    requireText('location', 'Machine location is required');
+
+    final mobile = _text('mobile').replaceAll(RegExp(r'\D'), '');
+    if (mobile.isEmpty) {
+      errors['mobile'] = 'Mobile number is required';
+    } else if (!RegExp(r'^[6-9]\d{9}$').hasMatch(mobile)) {
+      errors['mobile'] = 'Enter a valid 10-digit mobile number';
+    }
+
+    final email = _text('email').trim();
+    if (email.isNotEmpty &&
+        !RegExp(r'^[\w.\-+]+@([\w\-]+\.)+[a-zA-Z]{2,}$').hasMatch(email)) {
+      errors['email'] = 'Enter a valid email address';
+    }
+
+    final year = _text('year').trim();
+    final thisYear = DateTime.now().year;
+    if (year.isEmpty) {
+      errors['year'] = 'Manufacturing year is required';
+    } else {
+      final parsed = int.tryParse(year);
+      if (parsed == null || parsed < 1950 || parsed > thisYear) {
+        errors['year'] = 'Enter a year between 1950 and $thisYear';
+      }
+    }
+
+    final price = _text('price').replaceAll(RegExp(r'[^0-9]'), '');
+    if (price.isEmpty) {
+      errors['price'] = 'Expected price is required';
+    } else if ((int.tryParse(price) ?? 0) <= 0) {
+      errors['price'] = 'Enter a price greater than zero';
+    }
+
+    final pincode = _text('pincode').trim();
+    if (pincode.isNotEmpty && !RegExp(r'^\d{6}$').hasMatch(pincode)) {
+      errors['pincode'] = 'Enter a valid 6-digit pincode';
+    }
+
+    if (_draft.categories.isEmpty) {
+      errors['categories'] = 'Pick at least one machine category';
+    }
+
+    return errors;
+  }
+
+  /// Runs the gate for [step]. Returns true when the seller may move on.
+  bool _validateStep(int step) {
+    _sync();
+    final errors = step == 0 ? _validateDetails() : <String, String>{};
+
+    if (step == 1 && _draft.images.isEmpty) {
+      errors['images'] = 'Add at least one photo of the machine';
+    }
+
+    setState(() => _errors = errors);
+    if (errors.isEmpty) return true;
+
+    FocusScope.of(context).unfocus();
+    if (_scroll.hasClients) {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.danger,
+          content: Text(
+            errors.length == 1
+                ? errors.values.first
+                : '${errors.length} required fields still need filling',
+          ),
+        ),
+      );
+    return false;
+  }
+
   void _goTo(int step) {
     _sync();
+    // Going back is always allowed; going forward has to pass the gate for
+    // every step being left behind.
+    if (step > _step) {
+      for (var i = _step; i < step; i++) {
+        if (!_validateStep(i)) return;
+      }
+    }
     FocusScope.of(context).unfocus();
     setState(() => _step = step.clamp(0, steps.length - 1));
     if (_scroll.hasClients) _scroll.jumpTo(0);
@@ -190,43 +289,115 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       return;
     }
 
+    final source = await _askPhotoSource();
+    if (source == null || !mounted) return;
+
     final room = 10 - _draft.images.length;
-    final uploaded = await UploadService.instance.pickAndUpload(limit: room);
+    final result = await UploadService.instance.pickAndUpload(
+      limit: room,
+      source: source,
+    );
     if (!mounted) return;
 
-    if (uploaded.isEmpty) {
-      // Nothing picked, or the upload failed — keep the wizard usable either
-      // way by falling back to a bundled photo.
+    // A cancel leaves the list exactly as it was — the wizard never
+    // substitutes a stand-in photo for one the seller did not take.
+    if (result.cancelled) return;
+
+    if (result.hasUploads) {
       setState(() {
-        _draft.images.add(
-          _samplePhotos[_draft.images.length % _samplePhotos.length],
-        );
+        _draft.images.addAll(result.paths);
+        _errors = Map.of(_errors)..remove('images');
       });
-      return;
     }
-    setState(() => _draft.images.addAll(uploaded));
+
+    if (result.failed > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.hasUploads
+                ? '${result.failed} photo(s) could not be uploaded'
+                : 'Could not upload that photo. Check your connection.',
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Camera or gallery — sellers photograph a machine on the shop floor as
+  /// often as they pick one already taken.
+  Future<ImageSource?> _askPhotoSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Add machine photo',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.navy,
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.photo_camera_outlined,
+                size: 21,
+                color: AppColors.brandBlue,
+              ),
+              title: const Text('Take a photo'),
+              subtitle: const Text('Capture the machine right now'),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                size: 21,
+                color: AppColors.brandBlue,
+              ),
+              title: const Text('Choose from gallery'),
+              subtitle: const Text('Pick one or more saved photos'),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _addDocument(String category) async {
-    final index = _draft.documents.length + 1;
-    final slug = category
-        .replaceAll(RegExp(r'[^A-Za-z ]'), '')
-        .trim()
-        .replaceAll(' ', '_');
-
     final uploaded = await UploadService.instance.pickDocumentAndUpload();
     if (!mounted) return;
+
+    // No file, no row. A ticked document must mean a real attachment, or the
+    // sourcing desk is reviewing paperwork that does not exist.
+    if (uploaded == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No document was attached')));
+      return;
+    }
 
     setState(() {
       _draft.documents.add(
         SellDocument(
-          // A failed or cancelled pick still records the paperwork type, so
-          // the desk knows what the seller says they have.
-          name: uploaded?.name ?? '${slug}_$index.pdf',
-          size: uploaded?.size ?? '—',
+          name: uploaded.name,
+          size: uploaded.size,
           category: category,
           uploadedOn: 'Just now',
-          url: uploaded?.url ?? '',
+          url: uploaded.url,
         ),
       );
     });
@@ -234,6 +405,14 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
 
   Future<void> _submit() async {
     _sync();
+    // Last line of defence: the seller can reach Review by tapping the step
+    // dots, so re-check everything before anything is sent.
+    for (var i = 0; i < steps.length - 1; i++) {
+      if (!_validateStep(i)) {
+        setState(() => _step = i);
+        return;
+      }
+    }
     setState(() => _submitting = true);
 
     final listing = await SellStore.instance.submit(_draft);
@@ -318,7 +497,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
     return [
       const Text(
         'Submit your machine for verification. Once approved, our team will '
-        'list it for buyers on the marketplace. Every field is optional.',
+        'list it for buyers on the marketplace. Fields marked * are required.',
         style: TextStyle(
           fontSize: 14,
           height: 1.55,
@@ -336,6 +515,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             label: 'Seller / Contact Person Name',
             hint: 'e.g. Pappu Singh',
             controller: _ctrl('sellerName'),
+            required: true,
+            errorText: _errors['sellerName'],
             textCapitalization: TextCapitalization.words,
           ),
           SellField(
@@ -352,6 +533,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                   label: 'Mobile Number',
                   hint: '84015 03169',
                   controller: _ctrl('mobile'),
+                  required: true,
+                  errorText: _errors['mobile'],
                   keyboardType: TextInputType.phone,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
@@ -378,6 +561,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             label: 'Email ID',
             hint: 'you@company.com',
             controller: _ctrl('email'),
+            errorText: _errors['email'],
             keyboardType: TextInputType.emailAddress,
           ),
           Row(
@@ -435,6 +619,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             label: 'Pincode',
             hint: '360021',
             controller: _ctrl('pincode'),
+            errorText: _errors['pincode'],
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
@@ -452,15 +637,18 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
         title: 'Machine Details',
         children: [
           SellCheckboxGroup(
-            label: 'Machine Category (select all that apply)',
+            label: 'Machine Category (select all that apply) *',
             options: _categoryOptions,
             selected: _draft.categories,
             onToggle: (option) => setState(() {
               _draft.categories.contains(option)
                   ? _draft.categories.remove(option)
                   : _draft.categories.add(option);
+              _errors = Map.of(_errors)..remove('categories');
             }),
           ),
+          if (_errors['categories'] != null)
+            _InlineError(message: _errors['categories']!),
           if (_draft.categories.contains('Other'))
             SellField(
               label: 'Other Category',
@@ -485,6 +673,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                   label: 'Brand / Make',
                   hint: 'e.g. Haas',
                   controller: _ctrl('brand'),
+                  required: true,
+                  errorText: _errors['brand'],
                   textCapitalization: TextCapitalization.words,
                 ),
               ),
@@ -498,6 +688,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                   label: 'Model',
                   hint: 'e.g. VF-2',
                   controller: _ctrl('model'),
+                  required: true,
+                  errorText: _errors['model'],
                   textCapitalization: TextCapitalization.characters,
                 ),
               ),
@@ -507,6 +699,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                   label: 'Manufacturing Year',
                   hint: 'YYYY',
                   controller: _ctrl('year'),
+                  required: true,
+                  errorText: _errors['year'],
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
@@ -610,6 +804,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
                   label: 'Machine Location',
                   hint: 'City, State',
                   controller: _ctrl('location'),
+                  required: true,
+                  errorText: _errors['location'],
                   textCapitalization: TextCapitalization.words,
                 ),
               ),
@@ -693,6 +889,8 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
             label: 'Expected Selling Price (₹)',
             hint: 'e.g. 1500000',
             controller: _ctrl('price'),
+            required: true,
+            errorText: _errors['price'],
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
@@ -878,14 +1076,15 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Upload up to 10 clear images of the machine, then tick the views you '
-        'have covered.',
+        'At least one photo is required. Upload up to 10 clear images of the '
+        'machine, then tick the views you have covered.',
         style: TextStyle(
           fontSize: 13.5,
           height: 1.55,
           color: AppColors.textSecondary,
         ),
       ),
+      if (_errors['images'] != null) _InlineError(message: _errors['images']!),
       const SizedBox(height: 18),
       GestureDetector(
         onTap: _addPhoto,
@@ -932,7 +1131,7 @@ class _SellMachineScreenState extends State<SellMachineScreen> {
       const SizedBox(height: 18),
       if (_draft.images.isEmpty)
         const Text(
-          'No photos attached yet — this step is optional.',
+          'No photos attached yet — at least one is required.',
           style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
         )
       else
@@ -1462,6 +1661,38 @@ class _BottomBar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Red one-liner used where a required input is not a text field — the
+/// category checklist and the photo grid.
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, size: 15, color: AppColors.danger),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.danger,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

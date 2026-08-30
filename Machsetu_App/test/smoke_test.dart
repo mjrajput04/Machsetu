@@ -38,6 +38,8 @@ import 'package:machsetu_app/features/sell/sell_machine_screen.dart';
 import 'package:machsetu_app/features/sell/submission_status_screen.dart';
 import 'package:machsetu_app/features/support/help_support_screen.dart';
 import 'package:machsetu_app/features/support/terms_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:machsetu_app/core/services/upload_service.dart';
 
 void main() {
   // Phone-sized viewport so overflow assertions reflect a real handset.
@@ -67,7 +69,8 @@ void main() {
     SellStore.instance
       ..clear()
       ..seedDemoListings();
-    final view = TestWidgetsFlutterBinding.ensureInitialized().platformDispatcher
+    final view = TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
         .views
         .first;
     view.physicalSize = const Size(1080, 2340);
@@ -140,12 +143,36 @@ void main() {
     // Filtering to Lathes drops every machining centre.
     expect(find.text('DMG MORI DMU 50'), findsNothing);
 
-    await tester.dragUntilVisible(
-      find.text('Load More Results'),
-      find.byType(Scrollable).last,
-      const Offset(0, -150),
+    // Three lathes fit in one page, so there is nothing more to load and the
+    // footer button is correctly absent.
+    expect(find.textContaining('Load '), findsNothing);
+  });
+
+  testWidgets('the listing page pages through a long catalogue', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const MachineListingScreen(),
+      ),
     );
-    expect(find.text('Load More Results'), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    // 15 machines, 8 to a page: the footer offers the remaining 7.
+    await tester.dragUntilVisible(
+      find.textContaining('Load '),
+      find.byType(Scrollable).last,
+      const Offset(0, -200),
+    );
+    expect(find.text('Load 7 more'), findsOneWidget);
+
+    await tester.tap(find.text('Load 7 more'));
+    await tester.pumpAndSettle();
+
+    // Everything is on screen now, so the button is gone.
+    expect(find.textContaining('Load '), findsNothing);
   });
 
   testWidgets('tapping a listing opens the product page and fills the cart', (
@@ -171,10 +198,7 @@ void main() {
     expect(find.text('DMG MORI DMU 50'), findsOneWidget);
     // The brand line is a Text.rich, so it needs rich-text matching. It also
     // repeats in the Machine Details table, hence findsWidgets.
-    expect(
-      find.textContaining('DMG MORI', findRichText: true),
-      findsWidgets,
-    );
+    expect(find.textContaining('DMG MORI', findRichText: true), findsWidgets);
     expect(find.text('₹1,45,00,000'), findsOneWidget);
     expect(find.byType(ProductHero), findsOneWidget);
 
@@ -248,10 +272,7 @@ void main() {
     expect(cart.brokerage, closeTo(129895 * rates.brokerageRate / 100, 0.001));
     expect(
       cart.gst,
-      closeTo(
-        (cart.subtotal + cart.freight) * rates.gstRate / 100,
-        0.001,
-      ),
+      closeTo((cart.subtotal + cart.freight) * rates.gstRate / 100, 0.001),
     );
     expect(cart.total, closeTo(cart.subtotal + cart.freight + cart.gst, 0.001));
   });
@@ -584,7 +605,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Account Settings'), findsOneWidget);
-    expect(find.text('Marcus V. Sterling'), findsOneWidget);
+    // The header shows identity only now — no demo persona, designation,
+    // company, member ID or GST badge.
+    expect(find.text('MachSetu User'), findsOneWidget);
+    expect(find.text('Senior Procurement Director'), findsNothing);
+    expect(find.text('Aerotech Solutions Inc.'), findsNothing);
+    expect(find.textContaining('MS-88291'), findsNothing);
+    expect(find.textContaining('Verified GST'), findsNothing);
+    // Addresses have their own page in the menu.
+    expect(find.text('My Addresses'), findsOneWidget);
 
     // Sell Your Machine opens the listings page, not the form.
     await tester.tap(find.text('Sell Your Machine'));
@@ -624,7 +653,9 @@ void main() {
     expect(find.text('Terms of Trade'), findsOneWidget);
   });
 
-  testWidgets('editing the profile persists every field', (tester) async {
+  testWidgets('edit profile owns identity only, with a locked email', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -634,51 +665,35 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Prefilled from the demo profile, and the monogram tracks the name.
-    expect(find.text('MS'), findsOneWidget);
     expect(find.text('Change Photo'), findsOneWidget);
+    expect(find.text('Your Details'), findsOneWidget);
 
-    Future<void> fill(String hint, String value) async {
-      await tester.enterText(
-        find.widgetWithText(TextFormField, hint).last,
-        value,
-      );
-    }
+    // Company, GST and the single address block moved off this form.
+    expect(find.text('Company'), findsNothing);
+    expect(find.text('GST / Tax Identification Number'), findsNothing);
+    expect(find.text('Delivery Address'), findsNothing);
+    expect(find.text('Designation'), findsNothing);
 
-    await fill('Marcus V. Sterling', 'Rajesh Kumar');
+    // Addresses are a page of their own now, reachable from here.
+    expect(find.text('My Addresses'), findsOneWidget);
+
+    // Email is shown but cannot be edited — it is the account key.
+    final email = tester.widget<TextFormField>(
+      find.widgetWithText(TextFormField, 'you@company.com').last,
+    );
+    expect(email.enabled, isNot(false));
+    expect(
+      find.text('Your email is your login and cannot be changed here.'),
+      findsOneWidget,
+    );
+
+    // The monogram tracks whatever is typed into the name.
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Your name').last,
+      'Rajesh Kumar',
+    );
     await tester.pumpAndSettle();
     expect(find.text('RK'), findsOneWidget);
-
-    await fill('you@company.com', 'rajesh@apex.in');
-    await fill('98765 43210', '9876543210');
-    await fill('Aerotech Solutions Inc.', 'Apex Manufacturing');
-    await fill('GSTIN-9922883311', 'gstin24aaaaa1');
-    await fill('Pune', 'Pune');
-    await tester.pumpAndSettle();
-
-    final page = find.byType(Scrollable).first;
-    await tester.dragUntilVisible(
-      find.text('Save Changes'),
-      page,
-      const Offset(0, -200),
-    );
-    await tester.tap(find.text('Save Changes'));
-    await tester.pumpAndSettle();
-
-    // Saving now goes through the API, so the round-trip itself is covered by
-    // the backend tests. What matters here is that the form maps every field
-    // onto the profile model.
-    final cached = SessionUser.fromJson(const {
-      'name': 'Rajesh Kumar',
-      'email': 'rajesh@apex.in',
-      'phone': '9876543210',
-      'company': 'Apex Manufacturing',
-      'gstin': 'GSTIN24AAAAA1',
-      'city': 'Pune',
-    });
-    expect(cached.initials, 'RK');
-    expect(cached.company, 'Apex Manufacturing');
-    expect(cached.toJson()['designation'], '');
   });
 
   testWidgets('my inquiries filters open and closed RFQs', (tester) async {
@@ -749,7 +764,38 @@ void main() {
     expect(find.text('Chrome • Windows 11'), findsNothing);
   });
 
-  testWidgets('the sell wizard submits with every field left blank', (
+  testWidgets('the sell wizard blocks a blank submission', (tester) async {
+    SellStore.instance.clear();
+    addTearDown(SellStore.instance.clear);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+        home: const SellMachineScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Step 1: Details'), findsOneWidget);
+
+    // Next with nothing filled must not move off Details.
+    await tester.tap(find.text('Next Step'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Step 1: Details'), findsOneWidget);
+    expect(find.text('Upload Images'), findsNothing);
+    expect(
+      find.textContaining('required fields still need filling'),
+      findsOneWidget,
+    );
+    expect(find.text('Contact name is required'), findsOneWidget);
+
+    // Nothing reached the store.
+    expect(SellStore.instance.listings, isEmpty);
+  });
+
+  testWidgets('the wizard advances once the required fields are filled', (
     tester,
   ) async {
     SellStore.instance.clear();
@@ -764,61 +810,70 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Step 1: Details'), findsOneWidget);
-    expect(find.text('Seller Information'), findsOneWidget);
+    final page = find.byType(Scrollable).first;
 
-    // Straight through all four steps without typing anything.
+    Future<void> fill(String hint, String value) async {
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextField, hint).last,
+        260,
+        scrollable: page,
+        maxScrolls: 120,
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, hint).last, value);
+      await tester.pumpAndSettle();
+    }
+
+    await fill('e.g. Pappu Singh', 'Rajesh Kumar');
+    await fill('84015 03169', '9876543210');
+
+    // Category is a tick list, not a text field.
+    await tester.scrollUntilVisible(find.text('VMC'), 260, scrollable: page);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('VMC'));
+    await tester.pumpAndSettle();
+
+    await fill('e.g. Haas', 'Haas Automation');
+    await fill('e.g. VF-2', 'VF-2SS');
+    // Two fields share the 'YYYY' hint (Manufacturing and Installation
+    // Year); the first in tree order is the one the gate requires.
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'YYYY').first,
+      260,
+      scrollable: page,
+      maxScrolls: 120,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'YYYY').first,
+      '2021',
+    );
+    await tester.pumpAndSettle();
+
+    await fill('City, State', 'Pune, MH');
+
+    // Price sits in the next card down; reveal the section first so the lazy
+    // list has built it before the finder runs.
+    await tester.scrollUntilVisible(
+      find.text('Commercial Information'),
+      260,
+      scrollable: page,
+      maxScrolls: 120,
+    );
+    await tester.pumpAndSettle();
+    await fill('e.g. 1500000', '7050000');
+
     await tester.tap(find.text('Next Step'));
     await tester.pumpAndSettle();
+
+    // Details cleared, so the wizard moves on.
     expect(find.text('Upload Images'), findsOneWidget);
 
+    // A listing still needs a photo before it can go further.
     await tester.tap(find.text('Next Step'));
     await tester.pumpAndSettle();
-    expect(find.text('Documents Checklist'), findsOneWidget);
-
-    await tester.tap(find.text('Next Step'));
-    await tester.pumpAndSettle();
-    expect(find.text('Final Review'), findsOneWidget);
-
-    // Submit stays disabled until the seller confirms.
-    final submit = tester.widget<ElevatedButton>(
-      find.ancestor(
-        of: find.text('Submit for Verification'),
-        matching: find.byType(ElevatedButton),
-      ),
-    );
-    expect(submit.onPressed, isNull);
-
-    final confirmRow = find.textContaining('I hereby declare');
-    final reviewPage = find.byType(Scrollable).first;
-    await tester.scrollUntilVisible(confirmRow, 300, scrollable: reviewPage);
-    // dragUntilVisible stops the moment it is on screen, which leaves it
-    // under the fixed action bar — scroll clear of it before tapping.
-    await tester.drag(reviewPage, const Offset(0, -180));
-    await tester.pumpAndSettle();
-
-    // The whole row is the toggle, not just the small checkbox.
-    await tester.tap(confirmRow);
-    await tester.pumpAndSettle();
-
-    // Confirming enables the submit button.
-    final ready = tester.widget<ElevatedButton>(
-      find.ancestor(
-        of: find.text('Submit for Verification'),
-        matching: find.byType(ElevatedButton),
-      ),
-    );
-    expect(ready.onPressed, isNotNull);
-
-    await tester.tap(find.text('Submit for Verification'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(SubmissionStatusScreen), findsOneWidget);
-    expect(find.text('Machine Submitted Successfully'), findsOneWidget);
-    expect(find.text('Current Status: Pending Review'), findsOneWidget);
-    expect(SellStore.instance.listings.length, 1);
-    expect(SellStore.instance.listings.first.title, 'Untitled machine');
-    expect(SellStore.instance.listings.first.price, 'Price on request');
+    expect(find.text('Documents Checklist'), findsNothing);
+    expect(find.text('Add at least one photo of the machine'), findsWidgets);
   });
 
   testWidgets('submission status toggles to the timeline and tracks', (
@@ -933,6 +988,8 @@ void main() {
   ) async {
     SellStore.instance.clear();
     addTearDown(SellStore.instance.clear);
+    UploadService.overrideInstance(_StubUploads());
+    addTearDown(UploadService.resetInstance);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -954,16 +1011,14 @@ void main() {
 
     Future<void> fill(String hint, String value) async {
       await reveal(find.widgetWithText(TextField, hint).last);
-      await tester.enterText(
-        find.widgetWithText(TextField, hint).last,
-        value,
-      );
+      await tester.enterText(find.widgetWithText(TextField, hint).last, value);
       await tester.pumpAndSettle();
     }
 
     // Section 1 — seller information.
     expect(find.text('Seller Information'), findsOneWidget);
     await fill('e.g. Pappu Singh', 'Pappu Singh');
+    await fill('84015 03169', '9876543210');
     await fill('24AAACF1234K1ZV', '24aaacf1234k1zv');
 
     // Section 2 — category tick boxes and detail fields.
@@ -971,11 +1026,23 @@ void main() {
     await reveal(find.text('VMC'));
     await tester.tap(find.text('VMC'));
     await tester.pumpAndSettle();
+    await fill('e.g. Haas', 'Haas Automation');
+    await fill('e.g. VF-2', 'VF-2SS');
+    // Manufacturing Year shares its hint with Installation Year and comes
+    // first in tree order.
+    await reveal(find.widgetWithText(TextField, 'YYYY').first);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'YYYY').first,
+      '2021',
+    );
+    await tester.pumpAndSettle();
     await fill('e.g. Fanuc 31i-B', 'Fanuc 31i-B');
     await fill('e.g. 3 Axis', '3 Axis');
+    await fill('City, State', 'Pune, MH');
 
     // Section 3 — the Negotiable Yes/No pair is the first on the card.
     await reveal(find.text('Commercial Information'));
+    await fill('e.g. 1500000', '7050000');
     await reveal(find.text('Negotiable'));
     await tester.tap(find.text('Yes').first);
     await tester.pumpAndSettle();
@@ -984,8 +1051,20 @@ void main() {
     await reveal(find.text('Machine Specifications'));
     await fill('e.g. 914 x 356 mm', '914 x 356 mm');
 
-    // Walk to review and submit.
-    for (var i = 0; i < 3; i++) {
+    // Details are complete, so the wizard moves on.
+    await tester.tap(find.text('Next Step'));
+    await tester.pumpAndSettle();
+    expect(find.text('Upload Images'), findsOneWidget);
+
+    // One photo: the tile opens a camera/gallery sheet, then the stubbed
+    // picker returns a path.
+    await tester.tap(find.text('Tap to upload'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose from gallery'));
+    await tester.pumpAndSettle();
+
+    // Images -> Docs -> Review.
+    for (var i = 0; i < 2; i++) {
       await tester.tap(find.text('Next Step'));
       await tester.pumpAndSettle();
     }
@@ -1023,9 +1102,7 @@ void main() {
       MaterialApp(
         theme: AppTheme.light,
         onGenerateRoute: AppRoutes.onGenerateRoute,
-        home: ListingDetailsScreen(
-          listing: SellStore.instance.listings.first,
-        ),
+        home: ListingDetailsScreen(listing: SellStore.instance.listings.first),
       ),
     );
     await tester.pumpAndSettle();
@@ -1076,10 +1153,7 @@ void main() {
     expect(draft.commercialInfo.rows, contains(('Negotiable', 'Yes')));
     expect(draft.commercialInfo.rows, contains(('GST Available', 'No')));
     // Untouched Yes/No pairs stay blank rather than defaulting to No.
-    expect(
-      draft.commercialInfo.rows,
-      contains(('Tax Invoice Available', '')),
-    );
+    expect(draft.commercialInfo.rows, contains(('Tax Invoice Available', '')));
 
     // Category tick boxes fold the free-text "Other" value in.
     draft.categories.addAll(['CNC', 'Other']);
@@ -1209,4 +1283,20 @@ void main() {
     expect(Rupees.compact(999), '₹999');
     expect(Rupees.parse('₹1,15,00,000'), 11500000);
   });
+}
+
+/// Stands in for the gallery/camera picker, which a widget test cannot drive.
+class _StubUploads extends UploadService {
+  _StubUploads() : super.forTesting();
+
+  @override
+  Future<UploadOutcome> pickAndUpload({
+    int limit = 10,
+    ImageSource source = ImageSource.gallery,
+  }) async => const UploadOutcome(paths: ['/uploads/test-machine.jpg']);
+
+  @override
+  Future<({String url, String name, String size})?>
+  pickDocumentAndUpload() async =>
+      (url: '/uploads/test-doc.pdf', name: 'test-doc.pdf', size: '12 KB');
 }

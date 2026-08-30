@@ -28,9 +28,9 @@ class MachSetuApp extends StatelessWidget {
         // Keep layout stable regardless of the device font-scale setting.
         final scale = MediaQuery.textScalerOf(context).scale(1).clamp(0.9, 1.2);
         return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(scale),
-          ),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(scale)),
           child: child!,
         );
       },

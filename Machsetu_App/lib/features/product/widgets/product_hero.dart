@@ -1,5 +1,3 @@
-
-
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_image.dart';
 import 'dart:async';

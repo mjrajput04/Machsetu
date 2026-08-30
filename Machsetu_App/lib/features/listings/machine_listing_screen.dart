@@ -6,6 +6,9 @@ import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../product/data/product.dart';
 import 'data/listings.dart';
+import '../../core/services/machine_filter.dart';
+import '../../core/widgets/filter_sheet.dart';
+import '../../core/widgets/app_image.dart';
 
 /// Full catalogue reached from "View All Manifests" on the home page.
 class MachineListingScreen extends StatefulWidget {
@@ -17,6 +20,14 @@ class MachineListingScreen extends StatefulWidget {
 
 class _MachineListingScreenState extends State<MachineListingScreen> {
   String _category = ListingData.categories.first;
+
+  /// Filters from the tune icon in the app bar.
+  MachineFilter _filter = const MachineFilter();
+
+  /// Rows currently rendered; 'Load More' raises it.
+  int _visible = _pageSize;
+
+  static const int _pageSize = 8;
   final _catalogue = CatalogueService.instance;
 
   final _settings = SettingsService.instance;
@@ -56,10 +67,56 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
     );
   }
 
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
+  Future<void> _openFilters() async {
+    final updated = await showFilterSheet(
+      context: context,
+      current: _filter,
+      machines: _catalogue.all,
+    );
+    if (updated != null && mounted) {
+      setState(() {
+        _filter = updated;
+        _visible = _pageSize;
+      });
+    }
+  }
+
+  /// In-page search: narrows the same list rather than leaving the screen.
+  Future<void> _openSearch() async {
+    final query = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final controller = TextEditingController(text: _filter.query);
+        return AlertDialog(
+          title: const Text('Search machines'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            decoration: const InputDecoration(
+              hintText: 'Brand, model, location...',
+            ),
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(''),
+              child: const Text('Clear'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text('Search'),
+            ),
+          ],
+        );
+      },
+    );
+    if (query != null && mounted) {
+      setState(() {
+        _filter = _filter.copyWith(query: query.trim());
+        _visible = _pageSize;
+      });
+    }
   }
 
   @override
@@ -70,7 +127,9 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
     final category = categories.contains(_category)
         ? _category
         : categories.first;
-    final listings = _catalogue.listingsForCategory(category);
+    final matched = _filter.apply(_catalogue.machinesForCategory(category));
+    final listings = matched.take(_visible).map(_catalogue.listingFor).toList();
+    final hasMore = matched.length > listings.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -82,12 +141,19 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
         title: const Text('CNC Machines'),
         actions: [
           IconButton(
-            onPressed: () => _todo('Search'),
+            tooltip: 'Search machines',
+            onPressed: _openSearch,
             icon: const Icon(Icons.search),
           ),
           IconButton(
-            onPressed: () => _todo('Filters'),
-            icon: const Icon(Icons.tune),
+            tooltip: 'Filters',
+            onPressed: _openFilters,
+            icon: Badge(
+              isLabelVisible: _filter.activeCount > 0,
+              label: Text('${_filter.activeCount}'),
+              backgroundColor: AppColors.accent,
+              child: const Icon(Icons.tune),
+            ),
           ),
           const SizedBox(width: 4),
         ],
@@ -128,23 +194,31 @@ class _MachineListingScreenState extends State<MachineListingScreen> {
                         const SizedBox(height: 16),
                       ],
                       const SizedBox(height: 4),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(50),
-                          foregroundColor: AppColors.brandBlue,
-                          side: const BorderSide(color: AppColors.border),
-                          backgroundColor: AppColors.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                      if (hasMore)
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(50),
+                            foregroundColor: AppColors.brandBlue,
+                            side: const BorderSide(color: AppColors.border),
+                            backgroundColor: AppColors.surface,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () =>
+                              setState(() => _visible += _pageSize),
+                          icon: const Icon(Icons.expand_more, size: 18),
+                          // scaleDown: a long count must not overflow the row.
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Load ${matched.length - listings.length} more',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
-                        onPressed: () => _todo('More results'),
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text(
-                          'Load More Results',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
                     ],
                   ),
           ),
@@ -341,9 +415,11 @@ class _ListingCardState extends State<ListingCard> {
                       label: listing.year,
                     ),
                     const SizedBox(width: 20),
-                    _MetaItem(
-                      icon: Icons.place_outlined,
-                      label: listing.location,
+                    Flexible(
+                      child: _MetaItem(
+                        icon: Icons.place_outlined,
+                        label: listing.location,
+                      ),
                     ),
                   ],
                 ),
@@ -375,9 +451,11 @@ class _ListingCardState extends State<ListingCard> {
     return SizedBox(
       height: _photoHeight,
       width: double.infinity,
-      child: path == null
+      // AppImage, not Image.asset: a live listing's photo is an uploaded
+      // path served by the panel, which asset loading can never resolve.
+      child: path == null || path.trim().isEmpty
           ? _fallback(listing)
-          : Image.asset(
+          : AppImage(
               path,
               height: _photoHeight,
               width: double.infinity,
@@ -414,12 +492,15 @@ class _MetaItem extends StatelessWidget {
       children: [
         Icon(icon, size: 15, color: AppColors.textSecondary),
         const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
       ],

@@ -11,6 +11,8 @@ import '../home/data/machines.dart';
 import '../profile/new_inquiry_screen.dart';
 import 'data/product.dart';
 import 'widgets/product_hero.dart';
+import 'data/saved_store.dart';
+import '../../core/utils/launchers.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key, required this.product});
@@ -64,6 +66,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   }
 
   /// Hands an attached document to whatever the phone opens PDFs with.
+
+  /// Copies a plain-text summary — the marketplace has no public share link
+  /// yet, so the clipboard is the honest option.
+  Future<void> _shareProduct() async {
+    final product = widget.product;
+    final summary = [
+      product.title,
+      if (product.brand.isNotEmpty) 'Brand: ${product.brand}',
+      if (product.price.isNotEmpty) 'Price: ${product.price}',
+      if (product.equipmentType.isNotEmpty) 'Type: ${product.equipmentType}',
+      'Ref: ${product.id}',
+      'Seen on MachSetu',
+    ].join(' | ');
+    await Launchers.copy(
+      context,
+      summary,
+      label: 'Machine details copied - paste anywhere to share',
+    );
+  }
+
+  Future<void> _toggleSaved() async {
+    final saved = await SavedStore.instance.toggle(widget.product.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(saved ? 'Saved to your list' : 'Removed from saved'),
+        ),
+      );
+  }
+
   Future<void> _openDocument(ProductDocument doc) async {
     if (doc.url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -84,12 +118,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
         const SnackBar(content: Text('Could not open that document')),
       );
     }
-  }
-
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   /// Unwinds every pushed product page and lands on the shell's Cart tab.
@@ -128,8 +156,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
               images: product.images,
               icon: product.icon,
               onBack: () => Navigator.of(context).pop(),
-              onShare: () => _todo('Share'),
-              onSave: () => _todo('Save'),
+              onShare: _shareProduct,
+              onSave: _toggleSaved,
             ),
           ),
           SliverToBoxAdapter(child: _Header(product: product)),
@@ -156,7 +184,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           ),
           SliverToBoxAdapter(
             child: _SimilarMachines(
-              onViewAll: () => _todo('Similar machines'),
+              onViewAll: () =>
+                  Navigator.of(context).pushNamed(AppRoutes.machines),
               onTap: (machine) => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => ProductDetailScreen(

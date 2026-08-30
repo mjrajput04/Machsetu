@@ -4,6 +4,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_image.dart';
 import 'data/notification_store.dart';
 import 'data/notifications.dart';
+import '../../core/routes/app_routes.dart';
+import '../../core/services/shell_tabs.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -30,12 +32,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   void _onStore() {
     if (mounted) setState(() {});
-  }
-
-  void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -82,7 +78,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           for (final item in _store.today) ...[
             _NotificationCard(
               item: item,
-              onAction: (label) => _todo(context, label),
+              onAction: (label) => _handleAction(context, label),
             ),
             const SizedBox(height: 12),
           ],
@@ -92,7 +88,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           for (final item in _store.earlier) ...[
             _NotificationCard(
               item: item,
-              onAction: (label) => _todo(context, label),
+              onAction: (label) => _handleAction(context, label),
             ),
             const SizedBox(height: 12),
           ],
@@ -300,4 +296,30 @@ class _NotificationCard extends StatelessWidget {
       child: Icon(item.icon, size: 20, color: item.tint),
     );
   }
+}
+
+/// Sends a notification's button to the page it is about.
+///
+/// The feed's action labels are free text set by the desk, so this matches on
+/// intent rather than an exact string and always lands somewhere real.
+void _handleAction(BuildContext context, String label) {
+  final action = label.toLowerCase();
+
+  if (action.contains('quote') ||
+      action.contains('rfq') ||
+      action.contains('inquiry')) {
+    Navigator.of(context).pushNamed(AppRoutes.myInquiries);
+    return;
+  }
+  if (action.contains('order') || action.contains('track')) {
+    Navigator.of(context).pop();
+    ShellTabs.go(ShellTabs.orders);
+    return;
+  }
+  if (action.contains('listing') || action.contains('my machine')) {
+    Navigator.of(context).pushNamed(AppRoutes.myListings);
+    return;
+  }
+  // "View", "Details", "Browse" and anything else: the catalogue.
+  Navigator.of(context).pushNamed(AppRoutes.machines);
 }

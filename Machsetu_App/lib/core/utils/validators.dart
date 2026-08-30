@@ -1,9 +1,7 @@
 class Validators {
   Validators._();
 
-  static final RegExp _email = RegExp(
-    r'^[\w.\-+]+@([\w\-]+\.)+[a-zA-Z]{2,}$',
-  );
+  static final RegExp _email = RegExp(r'^[\w.\-+]+@([\w\-]+\.)+[a-zA-Z]{2,}$');
 
   static String? name(String? value) {
     final v = (value ?? '').trim();
@@ -34,7 +32,9 @@ class Validators {
     final v = (value ?? '').replaceAll(RegExp(r'\D'), '');
     if (v.isEmpty) return 'Mobile number is required';
     if (v.length != 10) return 'Enter a valid 10-digit mobile number';
-    if (!RegExp(r'^[6-9]').hasMatch(v)) return 'Mobile number must start with 6-9';
+    if (!RegExp(r'^[6-9]').hasMatch(v)) {
+      return 'Mobile number must start with 6-9';
+    }
     return null;
   }
 

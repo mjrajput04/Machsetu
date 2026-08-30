@@ -7,6 +7,32 @@ import 'package:image_picker/image_picker.dart';
 import 'api_client.dart';
 import 'session_store.dart';
 
+/// Outcome of a pick-and-upload, so a caller can tell "the user backed out"
+/// apart from "the upload failed" and say the right thing.
+class UploadOutcome {
+  const UploadOutcome({
+    this.paths = const [],
+    this.failed = 0,
+    this.cancelled = false,
+  });
+
+  const UploadOutcome.cancelled()
+    : paths = const [],
+      failed = 0,
+      cancelled = true;
+
+  /// Stored paths of everything that made it to the server.
+  final List<String> paths;
+
+  /// How many picked files could not be sent.
+  final int failed;
+
+  /// True when the picker was dismissed without choosing anything.
+  final bool cancelled;
+
+  bool get hasUploads => paths.isNotEmpty;
+}
+
 /// Sends seller photos to the admin panel and hands back their public paths.
 ///
 /// Files land in the panel's `/uploads` folder, so the same photo the seller
@@ -14,27 +40,59 @@ import 'session_store.dart';
 class UploadService {
   UploadService._();
 
-  static final UploadService instance = UploadService._();
+  /// Subclass seam for tests — a widget test has no picker or camera, so it
+  /// installs a stub through [overrideInstance].
+  @visibleForTesting
+  UploadService.forTesting();
+
+  static UploadService instance = UploadService._();
+
+  /// Swaps in a stub. Pair every call with [resetInstance] in a tear-down.
+  @visibleForTesting
+  static void overrideInstance(UploadService replacement) {
+    instance = replacement;
+  }
+
+  @visibleForTesting
+  static void resetInstance() {
+    instance = UploadService._();
+  }
 
   final ImagePicker _picker = ImagePicker();
 
-  /// Opens the gallery and uploads whatever the seller picks.
+  /// Picks machine photos and uploads them.
   ///
-  /// Returns the stored paths, or an empty list if they cancelled. [limit]
-  /// caps the selection so the wizard's ten-photo rule holds.
-  Future<List<String>> pickAndUpload({int limit = 10}) async {
+  /// [source] chooses the gallery (multi-select) or the camera (one live
+  /// capture per call). [limit] caps the selection so the wizard's ten-photo
+  /// rule holds. Nothing is ever invented — a cancel returns a cancelled
+  /// outcome and the caller leaves the list untouched.
+  Future<UploadOutcome> pickAndUpload({
+    int limit = 10,
+    ImageSource source = ImageSource.gallery,
+  }) async {
     // No compression and no downscale: a buyer judging a machine needs the
     // full-resolution photo the seller actually took.
-    final picked = await _picker.pickMultiImage();
-    if (picked.isEmpty) return const [];
+    final List<XFile> picked;
+    if (source == ImageSource.camera) {
+      final shot = await _picker.pickImage(source: ImageSource.camera);
+      picked = shot == null ? const [] : [shot];
+    } else {
+      picked = await _picker.pickMultiImage();
+    }
+    if (picked.isEmpty) return const UploadOutcome.cancelled();
 
     final files = picked.take(limit).toList();
     final uploaded = <String>[];
+    var failed = 0;
     for (final file in files) {
       final url = await upload(file);
-      if (url != null) uploaded.add(url);
+      if (url != null) {
+        uploaded.add(url);
+      } else {
+        failed++;
+      }
     }
-    return uploaded;
+    return UploadOutcome(paths: uploaded, failed: failed);
   }
 
   /// Picks a single photo from [source] and uploads it.

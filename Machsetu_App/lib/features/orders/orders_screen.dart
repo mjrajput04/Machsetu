@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/shell_tabs.dart';
 import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/order.dart';
+import '../../core/services/catalogue_service.dart';
+import '../cart/data/cart_store.dart';
+import '../product/data/product.dart';
 
 /// Order pipeline — open inquiries on top, closed orders underneath.
 class OrdersScreen extends StatefulWidget {
@@ -19,12 +23,6 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   /// null shows everything; otherwise only orders in this status.
   OrderStatus? _filter;
-
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
 
   List<Order> _apply(List<Order> orders) {
     final filter = _filter;
@@ -113,11 +111,25 @@ class _OrdersScreenState extends State<OrdersScreen> {
     super.dispose();
   }
 
+  /// Puts a delivered order's machine back in the cart and shows the cart, so
+  /// "Re-order" ends where the buyer expects rather than in a toast.
+  void _reorder(Order order) {
+    final machine = CatalogueService.instance.byTitle(order.title);
+    if (machine == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${order.title} is no longer listed')),
+      );
+      return;
+    }
+    CartStore.instance.add(ProductCatalog.fromMachine(machine));
+    ShellTabs.go(ShellTabs.cart);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: MachSetuAppBar(
-        onAvatarTap: () => _todo('Profile'),
+        onAvatarTap: () => ShellTabs.go(ShellTabs.profile),
         showAvatar: true,
       ),
       body: ListenableBuilder(
@@ -210,7 +222,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     _OrderCard(
                       order: order,
                       onPrimary: () => order.status == OrderStatus.delivered
-                          ? _todo('Re-order ${order.title}')
+                          ? _reorder(order)
                           : OrderStore.instance.remove(order),
                     ),
                     const SizedBox(height: 14),

@@ -6,15 +6,11 @@ import '../../core/utils/currency.dart';
 import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/cart_store.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/utils/launchers.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
-
-  void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +55,18 @@ class CartScreen extends StatelessWidget {
                 _OrderSummary(
                   onCheckout: () =>
                       Navigator.of(context).pushNamed(AppRoutes.checkout),
-                  onExport: () => _todo(context, 'Export quote'),
+                  onExport: () => _exportQuote(context, cart),
                 ),
                 const SizedBox(height: 16),
                 const _AssuranceNote(),
                 const SizedBox(height: 16),
-                _AssistanceNote(onConnect: () => _todo(context, 'Agent chat')),
+                _AssistanceNote(
+                  onConnect: () => Launchers.whatsapp(
+                    context,
+                    SettingsService.instance.support.phone,
+                    message: 'Hello MachSetu, I need help with my cart.',
+                  ),
+                ),
               ],
             ],
           );
@@ -801,4 +803,26 @@ class _EmptyCart extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Copies the basket as a plain-text quote the buyer can paste into an email
+/// or a WhatsApp thread. No PDF service exists yet, and inventing one would
+/// mean a button that fails on half the devices.
+Future<void> _exportQuote(BuildContext context, CartStore cart) async {
+  final lines = <String>[
+    'MachSetu - Quote request',
+    '',
+    for (final item in cart.items)
+      '- ${item.product.title} x${item.quantity}  ${item.product.price}',
+    '',
+    'Subtotal: ${Rupees.format(cart.subtotal)}',
+    'Freight & brokerage: ${Rupees.format(cart.freight)}',
+    'GST (${cart.gstLabel}): ${Rupees.format(cart.gst)}',
+    'Total: ${Rupees.format(cart.total)}',
+  ];
+  await Launchers.copy(
+    context,
+    lines.join(String.fromCharCode(10)),
+    label: 'Quote copied - paste it into an email or WhatsApp',
+  );
 }

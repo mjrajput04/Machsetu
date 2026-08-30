@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/services/shell_tabs.dart';
 import '../../core/utils/currency.dart';
 import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import 'data/order.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/utils/launchers.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
@@ -44,12 +47,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (mounted) setState(() {});
   }
 
-  void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
-
   @override
   Widget build(BuildContext context) {
     // Always draw the server's copy; the pushed argument is only the seed.
@@ -57,7 +54,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     return Scaffold(
       appBar: MachSetuAppBar(
-        onAvatarTap: () => _todo(context, 'Profile'),
+        onAvatarTap: () => ShellTabs.go(ShellTabs.profile),
         showAvatar: true,
       ),
       body: ListView(
@@ -122,7 +119,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             _MachineCard(order: order),
             const SizedBox(height: 16),
           ],
-          _AssistanceCard(onCall: () => _todo(context, 'Priority line')),
+          _AssistanceCard(
+            onCall: () =>
+                Launchers.call(context, SettingsService.instance.support.phone),
+          ),
           const SizedBox(height: 16),
           const _TransitCard(),
         ],

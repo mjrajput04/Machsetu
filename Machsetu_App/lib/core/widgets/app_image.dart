@@ -1,13 +1,15 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 
 /// Draws a machine photo no matter where it lives.
 ///
-/// Every uploaded image and document is stored in the database and served
-/// back through `/api/files/<id>`, so the source is worked out from the path
-/// instead of at each call site. Bundled assets are only a fallback for when
-/// the server cannot be reached.
+/// Every uploaded image and document is stored by the panel and served back
+/// over `/uploads/…` or `/api/files/<id>`, so the source is worked out from the
+/// path instead of at each call site. Bundled assets are only a fallback for
+/// when the server cannot be reached.
 class AppImage extends StatelessWidget {
   const AppImage(
     this.path, {
@@ -29,11 +31,15 @@ class AppImage extends StatelessWidget {
 
   /// Turns a stored path into something an [Image] can load.
   static String resolve(String path) {
-    if (path.isEmpty) return path;
-    if (path.startsWith('assets/')) return path;
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    if (path.startsWith('/')) return '${ApiClient.baseUrl}$path';
-    return path;
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return trimmed;
+    if (trimmed.startsWith('assets/')) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('/')) return '${ApiClient.baseUrl}$trimmed';
+    // A bare file name is an upload the server serves from /uploads.
+    return '${ApiClient.baseUrl}/uploads/$trimmed';
   }
 
   /// Bundled stand-in for a database photo, matched on the file name.
@@ -50,16 +56,34 @@ class AppImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final source = resolve(path);
 
-    Widget placeholder() => Container(
+    Widget placeholder({bool busy = false}) => Container(
       width: width,
       height: height,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       alignment: Alignment.center,
-      child: const Icon(Icons.precision_manufacturing, color: Colors.black26),
+      child: busy
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.precision_manufacturing, color: Colors.black26),
     );
 
-    final onError =
-        errorBuilder ?? (context, error, stack) => placeholder();
+    // Nothing stored: draw the placeholder rather than asking the image
+    // pipeline to load an empty path and fail.
+    if (source.isEmpty) return placeholder();
+
+    final onError = errorBuilder ?? (context, error, stack) => placeholder();
+
+    // Decode at roughly the size actually drawn. Seller photos are uploaded at
+    // full resolution, and decoding those at native size is what makes long
+    // lists stutter and, on cheaper phones, drop images entirely.
+    final ratio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+    final target = width ?? height;
+    final cacheWidth = target == null || !target.isFinite
+        ? null
+        : math.max(1, (target * ratio).round());
 
     if (!_isRemote(source)) {
       return Image.asset(
@@ -67,6 +91,8 @@ class AppImage extends StatelessWidget {
         fit: fit,
         width: width,
         height: height,
+        cacheWidth: cacheWidth,
+        filterQuality: FilterQuality.medium,
         errorBuilder: onError,
       );
     }
@@ -77,6 +103,12 @@ class AppImage extends StatelessWidget {
       fit: fit,
       width: width,
       height: height,
+      cacheWidth: cacheWidth,
+      filterQuality: FilterQuality.medium,
+      // Keeps the previous frame while a new URL loads, instead of flashing.
+      gaplessPlayback: true,
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : placeholder(busy: true),
       // A demo photo the app already ships stands in while offline.
       errorBuilder: fallback == null
           ? onError
@@ -85,6 +117,7 @@ class AppImage extends StatelessWidget {
               fit: fit,
               width: width,
               height: height,
+              cacheWidth: cacheWidth,
               errorBuilder: onError,
             ),
     );

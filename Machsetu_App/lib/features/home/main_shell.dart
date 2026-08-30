@@ -15,6 +15,7 @@ import '../orders/orders_screen.dart';
 import '../profile/profile_screen.dart';
 import '../search/search_screen.dart';
 import 'home_screen.dart';
+import '../profile/data/address_store.dart';
 
 /// Bottom-navigation container that hosts the marketplace tabs.
 class MainShell extends StatefulWidget {
@@ -108,6 +109,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   /// Drops the stored session so the next launch starts at login again.
   Future<void> _logout() async {
     await SessionStore.instance.clear();
+    // Saved addresses are per-account, so they must not survive into the
+    // next sign-in on this device.
+    AddressStore.instance.reset();
     if (!mounted) return;
     Navigator.of(
       context,

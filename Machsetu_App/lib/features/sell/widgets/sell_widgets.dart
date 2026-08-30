@@ -165,6 +165,9 @@ class SellField extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.maxLines = 1,
     this.isLast = false,
+    this.required = false,
+    this.errorText,
+    this.onChanged,
   });
 
   final String label;
@@ -176,6 +179,14 @@ class SellField extends StatelessWidget {
   final int maxLines;
   final bool isLast;
 
+  /// Marks the label with an asterisk and lets the step gate flag it.
+  final bool required;
+
+  /// Set by the wizard when this field blocked the step.
+  final String? errorText;
+
+  final ValueChanged<String>? onChanged;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -183,11 +194,24 @@ class SellField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.textSecondary,
+          Text.rich(
+            TextSpan(
+              text: label,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textSecondary,
+              ),
+              children: required
+                  ? const [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ]
+                  : null,
             ),
           ),
           const SizedBox(height: 7),
@@ -197,6 +221,7 @@ class SellField extends StatelessWidget {
             inputFormatters: inputFormatters,
             textCapitalization: textCapitalization,
             maxLines: maxLines,
+            onChanged: onChanged,
             style: const TextStyle(
               fontSize: 14.5,
               color: AppColors.textPrimary,
@@ -215,9 +240,17 @@ class SellField extends StatelessWidget {
                 horizontal: 14,
                 vertical: 14,
               ),
-              border: _border(AppColors.border),
-              enabledBorder: _border(AppColors.border),
-              focusedBorder: _border(AppColors.navy, width: 1.4),
+              errorText: errorText,
+              border: _border(
+                errorText == null ? AppColors.border : AppColors.danger,
+              ),
+              enabledBorder: _border(
+                errorText == null ? AppColors.border : AppColors.danger,
+              ),
+              focusedBorder: _border(
+                errorText == null ? AppColors.navy : AppColors.danger,
+                width: 1.4,
+              ),
             ),
           ),
         ],

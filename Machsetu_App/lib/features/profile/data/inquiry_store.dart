@@ -33,10 +33,7 @@ class InquiryStore extends ChangeNotifier {
     // Set without notifying — load() runs from initState.
     _loading = true;
 
-    final result = await ApiClient.instance.get(
-      '/api/inquiries',
-      token: token,
-    );
+    final result = await ApiClient.instance.get('/api/inquiries', token: token);
     if (result.ok) {
       final raw = result.data['inquiries'];
       if (raw is List) {

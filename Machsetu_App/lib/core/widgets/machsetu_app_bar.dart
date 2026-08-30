@@ -49,7 +49,8 @@ class MachSetuAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           // Defaults to the notification centre so every screen's bell works
           // without each one wiring it up.
-          onPressed: onNotifications ??
+          onPressed:
+              onNotifications ??
               () => Navigator.of(context).pushNamed(AppRoutes.notifications),
           icon: const Badge(
             backgroundColor: AppColors.accent,

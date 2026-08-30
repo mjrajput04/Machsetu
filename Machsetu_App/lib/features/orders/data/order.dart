@@ -209,10 +209,7 @@ class OrderStore extends ChangeNotifier {
 
     if (sent.reference != null) {
       await loadMine(force: true);
-      return (
-        order: byReference(sent.reference!) ?? order,
-        error: null,
-      );
+      return (order: byReference(sent.reference!) ?? order, error: null);
     }
     return (order: order, error: sent.error);
   }

@@ -5,9 +5,7 @@ import 'package:http/http.dart' as http;
 
 /// Result of an API call — either data, or a message safe to show the user.
 class ApiResult {
-  const ApiResult.success(this.data)
-    : ok = true,
-      message = null;
+  const ApiResult.success(this.data) : ok = true, message = null;
 
   const ApiResult.failure(this.message) : ok = false, data = const {};
 
@@ -32,10 +30,9 @@ class ApiClient {
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
   /// The deployed marketplace.
-  static const String production = 'https://machsetu.com';
+  static const String production = 'http://localhost:3000';
 
-  static String get baseUrl =>
-      _override.isEmpty ? production : _override;
+  static String get baseUrl => _override.isEmpty ? production : _override;
 
   static const Duration _timeout = Duration(seconds: 20);
 
@@ -53,6 +50,9 @@ class ApiClient {
 
   Future<ApiResult> get(String path, {String? token}) =>
       _send('GET', path, token: token);
+
+  Future<ApiResult> delete(String path, {String? token}) =>
+      _send('DELETE', path, token: token);
 
   Future<ApiResult> _send(
     String method,
@@ -77,6 +77,8 @@ class ApiClient {
           response = await http
               .put(uri, headers: headers, body: jsonEncode(body))
               .timeout(_timeout);
+        case 'DELETE':
+          response = await http.delete(uri, headers: headers).timeout(_timeout);
         default:
           response = await http.get(uri, headers: headers).timeout(_timeout);
       }

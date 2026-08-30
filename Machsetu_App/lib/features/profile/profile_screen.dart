@@ -5,7 +5,6 @@ import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
-import 'data/profile_data.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, required this.onLogout});
@@ -31,12 +30,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = await SessionStore.instance.user(refresh: true);
     if (!mounted) return;
     setState(() => _user = user);
-  }
-
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   /// Confirms before dropping the session — logging out is easy to hit by
@@ -120,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final name = (_user?.name.isNotEmpty ?? false)
         ? _user!.name
-        : ProfileData.fallbackName;
+        : 'MachSetu User';
     final initials = (_user?.initials.isNotEmpty ?? false)
         ? _user!.initials
         : 'MS';
@@ -134,12 +127,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             name: name,
             initials: initials,
             photo: _user?.avatar ?? '',
-            role: (_user?.role.isNotEmpty ?? false)
-                ? _user!.role
-                : ProfileData.role,
-            company: (_user?.company.isNotEmpty ?? false)
-                ? _user!.company
-                : ProfileData.company,
+            email: _user?.email ?? '',
+            phone: _user?.phone ?? '',
           ),
           const SizedBox(height: 26),
           const _SectionHeading('Account Settings'),
@@ -166,9 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _SettingRow(
                   icon: Icons.badge_outlined,
                   title: 'Edit Profile',
-                  detail:
-                      'Update personal details, company info, and contact '
-                      'preferences',
+                  detail: 'Update your name, mobile number and photo',
                   onTap: () async {
                     final saved = await Navigator.of(
                       context,
@@ -176,6 +163,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Pull the freshly saved details back into the header.
                     if (saved == true) await _load();
                   },
+                ),
+                _SettingRow(
+                  icon: Icons.location_on_outlined,
+                  title: 'My Addresses',
+                  detail:
+                      'Delivery and installation sites — add, edit or remove '
+                      'them',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.myAddresses),
                 ),
                 _SettingRow(
                   icon: Icons.description_outlined,
@@ -221,40 +217,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 26),
-          const _SectionHeading('Active Status'),
-          const SizedBox(height: 12),
-          const _ActiveOrdersCard(),
-          const SizedBox(height: 22),
-          const Text(
-            'RECENT LOGS',
-            style: TextStyle(
-              fontSize: 11.5,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                for (var i = 0; i < ProfileData.logs.length; i++)
-                  _LogRow(
-                    log: ProfileData.logs[i],
-                    isLast: i == ProfileData.logs.length - 1,
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          _UpgradeBanner(onTap: () => _todo('Pro+ upgrade')),
         ],
       ),
     );
@@ -266,8 +228,8 @@ class _Header extends StatelessWidget {
     required this.name,
     required this.initials,
     required this.photo,
-    required this.role,
-    required this.company,
+    required this.email,
+    required this.phone,
   });
 
   final String name;
@@ -275,8 +237,8 @@ class _Header extends StatelessWidget {
 
   /// Uploaded profile photo; falls back to the monogram when empty.
   final String photo;
-  final String role;
-  final String company;
+  final String email;
+  final String phone;
 
   @override
   Widget build(BuildContext context) {
@@ -320,51 +282,42 @@ class _Header extends StatelessWidget {
             color: AppColors.navy,
           ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          role,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        Text(
-          company,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.border.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Text(
-            ProfileData.memberId,
-            style: TextStyle(
-              fontSize: 12,
-              letterSpacing: 0.4,
-              fontWeight: FontWeight.w600,
+        if (email.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ContactLine(icon: Icons.mail_outline, value: email),
+        ],
+        if (phone.trim().isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _ContactLine(icon: Icons.phone_iphone, value: phone),
+        ],
+      ],
+    );
+  }
+}
+
+/// One centred icon + value row under the name.
+class _ContactLine extends StatelessWidget {
+  const _ContactLine({required this.icon, required this.value});
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 14, color: AppColors.textSecondary),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13.5,
               color: AppColors.textSecondary,
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.verified, size: 14, color: AppColors.accent),
-            SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                ProfileData.verification,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.accent,
-                ),
-              ),
-            ),
-          ],
         ),
       ],
     );
@@ -481,199 +434,6 @@ class _SettingRow extends StatelessWidget {
         if (!isLast)
           const Divider(height: 1, indent: 65, color: AppColors.border),
       ],
-    );
-  }
-}
-
-class _ActiveOrdersCard extends StatelessWidget {
-  const _ActiveOrdersCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: BoxDecoration(
-        gradient: AppColors.bannerGradient,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'ACTIVE ORDERS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.steelLight,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.trending_up,
-                size: 19,
-                color: Colors.white.withValues(alpha: 0.75),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '${ProfileData.activeOrders}',
-            style: TextStyle(
-              fontSize: 38,
-              height: 1.1,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            ProfileData.activeOrdersNote,
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.45,
-              color: AppColors.steelLight,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LogRow extends StatelessWidget {
-  const _LogRow({required this.log, required this.isLast});
-
-  final ActivityLog log;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-          child: Row(
-            children: [
-              Container(
-                height: 36,
-                width: 36,
-                decoration: BoxDecoration(
-                  color: log.color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(log.icon, size: 18, color: log.color),
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      log.title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      log.detail,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        height: 1.4,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                log.stamp,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  color: AppColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!isLast)
-          const Divider(height: 1, indent: 63, color: AppColors.border),
-      ],
-    );
-  }
-}
-
-class _UpgradeBanner extends StatelessWidget {
-  const _UpgradeBanner({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 118,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(14)),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(
-              'assets/images/machines/workshop_banner.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  const ColoredBox(color: AppColors.navy),
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                  colors: [
-                    AppColors.navyDark.withValues(alpha: 0.94),
-                    AppColors.navyDeep.withValues(alpha: 0.62),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Upgrade to Pro+',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Get priority dispatch and 24/7 engineering consulting.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -109,8 +109,9 @@ OrderStatus _statusFrom(String stage) => switch (stage) {
   'Inquiry Received' => OrderStatus.inquiryReceived,
   'Under Review' => OrderStatus.underReview,
   'Broker Contacting You' => OrderStatus.brokerContact,
-  'Order Confirmed' || 'Price Confirmed' || 'Machine Reserved' =>
-    OrderStatus.confirmed,
+  'Order Confirmed' ||
+  'Price Confirmed' ||
+  'Machine Reserved' => OrderStatus.confirmed,
   'Delivered' => OrderStatus.delivered,
   'Cancelled' => OrderStatus.cancelled,
   _ => OrderStatus.underReview,

@@ -229,10 +229,7 @@ class SettingsService extends ChangeNotifier {
           faqs: [
             if (faqs is List)
               for (final f in faqs.whereType<Map<String, dynamic>>())
-                Faq(
-                  _text(f['question'], ''),
-                  _text(f['answer'], ''),
-                ),
+                Faq(_text(f['question'], ''), _text(f['answer'], '')),
           ],
           phone: _text(support['phone'], SupportContent.fallback.phone),
           email: _text(support['email'], SupportContent.fallback.email),
@@ -246,7 +243,10 @@ class SettingsService extends ChangeNotifier {
         List<String> list(String key) {
           final value = options[key];
           return value is List
-              ? value.map((v) => v.toString()).where((v) => v.isNotEmpty).toList()
+              ? value
+                    .map((v) => v.toString())
+                    .where((v) => v.isNotEmpty)
+                    .toList()
               : const [];
         }
 

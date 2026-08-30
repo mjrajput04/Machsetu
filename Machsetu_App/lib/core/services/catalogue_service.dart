@@ -51,6 +51,10 @@ class CatalogueService extends ChangeNotifier {
   List<SearchListing> get searchResults =>
       _machines.map(_toSearchListing).toList();
 
+  /// One search card, so a filtered list can be mapped without going through
+  /// the whole catalogue again.
+  SearchListing searchListingFor(Machine machine) => _toSearchListing(machine);
+
   /// Machine listing page cards, in the same shape the screen already draws.
   List<Listing> get listings => _machines.map(_toListing).toList();
 
@@ -69,13 +73,18 @@ class CatalogueService extends ChangeNotifier {
     return [ListingData.categories.first, ...seen];
   }
 
-  List<Listing> listingsForCategory(String category) {
-    if (category == ListingData.categories.first) return listings;
-    return _machines
-        .where((m) => m.category == category)
-        .map(_toListing)
-        .toList();
+  List<Listing> listingsForCategory(String category) =>
+      machinesForCategory(category).map(_toListing).toList();
+
+  /// The machines behind a category chip, so a caller can filter and sort
+  /// them before they are turned into cards.
+  List<Machine> machinesForCategory(String category) {
+    if (category == ListingData.categories.first) return _machines;
+    return _machines.where((m) => m.category == category).toList();
   }
+
+  /// One listing card, for a list that has already been filtered.
+  Listing listingFor(Machine machine) => _toListing(machine);
 
   /// Fills the catalogue without a round trip. Tests only.
   @visibleForTesting
@@ -159,7 +168,8 @@ SearchListing _toSearchListing(Machine machine) => SearchListing(
       ResultBadge(machine.condition, BadgeTone.light),
   ],
   specs: [
-    for (final spec in machine.specs) ResultSpec(spec.label.toUpperCase(), spec.value),
+    for (final spec in machine.specs)
+      ResultSpec(spec.label.toUpperCase(), spec.value),
     if (machine.location.trim().isNotEmpty)
       ResultSpec('LOCATION', machine.location),
   ],
@@ -197,7 +207,9 @@ List<MachineDocument> _documents(dynamic value) {
               ? _text(entry['category'])
               : _text(entry['name']),
           meta: [
-            _text(entry['url']).toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMAGE',
+            _text(entry['url']).toLowerCase().endsWith('.pdf')
+                ? 'PDF'
+                : 'IMAGE',
             _text(entry['size']),
             _text(entry['category']),
           ].where((v) => v.isNotEmpty).join(' • '),

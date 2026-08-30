@@ -9,6 +9,8 @@ import '../../core/widgets/app_image.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../cart/data/cart_store.dart';
 import '../orders/data/order.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/utils/launchers.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -57,9 +59,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Goes to the sourcing desk; falls back to a local order when offline.
     final result = await OrderStore.instance.submit(
       CartStore.instance,
-      location: [_city.text.trim(), _state.text.trim()]
-          .where((v) => v.isNotEmpty)
-          .join(', '),
+      location: [
+        _city.text.trim(),
+        _state.text.trim(),
+      ].where((v) => v.isNotEmpty).join(', '),
       customer: {
         'name': _name.text.trim(),
         'phone': _phone.text.trim(),
@@ -90,12 +93,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await Navigator.of(
       context,
     ).pushReplacementNamed(AppRoutes.orderSuccess, arguments: order);
-  }
-
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
   }
 
   @override
@@ -248,7 +245,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     onPlaceOrder: _placeOrder,
                   ),
                   const SizedBox(height: 18),
-                  _HelpBox(onContact: () => _todo('Procurement specialist')),
+                  _HelpBox(
+                    onContact: () => Launchers.call(
+                      context,
+                      SettingsService.instance.support.phone,
+                    ),
+                  ),
                   const SizedBox(height: 22),
                   const Text(
                     '© 2026 MachSetu Marketplace. All Rights Reserved.\n'

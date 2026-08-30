@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/launchers.dart';
 
 class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
@@ -70,12 +71,6 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     ),
   ];
 
-  void _todo(BuildContext context, String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,7 +111,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   icon: Icons.chat_bubble_outline,
                   label: 'Live Chat',
                   detail: 'Avg. 2 min',
-                  onTap: () => _todo(context, 'Live chat'),
+                  onTap: () => Launchers.whatsapp(
+                    context,
+                    _settings.support.phone,
+                    message: 'Hello MachSetu, I need help with ',
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -125,7 +124,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   icon: Icons.call_outlined,
                   label: 'Call Us',
                   detail: _settings.support.phone,
-                  onTap: () => _todo(context, 'Call support'),
+                  onTap: () => Launchers.call(context, _settings.support.phone),
                 ),
               ),
               const SizedBox(width: 12),
@@ -134,7 +133,11 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   icon: Icons.mail_outline,
                   label: 'Email',
                   detail: _settings.support.email,
-                  onTap: () => _todo(context, 'Email support'),
+                  onTap: () => Launchers.email(
+                    context,
+                    _settings.support.email,
+                    subject: 'MachSetu support request',
+                  ),
                 ),
               ),
             ],
@@ -248,7 +251,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                       borderRadius: BorderRadius.circular(9),
                     ),
                   ),
-                  onPressed: () => _todo(context, 'Support ticket'),
+                  onPressed: () => Launchers.email(
+                    context,
+                    _settings.support.email,
+                    subject: 'Support ticket',
+                    body:
+                        'Describe the issue below and our team will '
+                        'reply within one working day. Issue: ',
+                  ),
                   icon: const Icon(
                     Icons.confirmation_number_outlined,
                     size: 18,

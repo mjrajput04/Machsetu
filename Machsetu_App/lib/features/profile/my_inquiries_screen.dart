@@ -5,6 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_image.dart';
 import 'data/inquiries.dart';
 import 'data/inquiry_store.dart';
+import '../../core/services/settings_service.dart';
+import '../../core/utils/launchers.dart';
 
 class MyInquiriesScreen extends StatefulWidget {
   const MyInquiriesScreen({super.key});
@@ -42,17 +44,105 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
 
   static const List<String> _tabs = ['All', 'Open', 'Closed'];
 
-  void _todo(String label) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$label — coming soon')));
-  }
-
   List<Inquiry> get _visible => switch (_tab) {
     1 => _store.open,
     2 => _store.closed,
     _ => _store.all,
   };
+
+  /// A quoted RFQ shows the vendor's answer; anything else offers a nudge to
+  /// the sourcing desk on WhatsApp, which is how follow-ups actually happen.
+  void _openInquiry(Inquiry inquiry) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                inquiry.machine,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${inquiry.reference} - ${inquiry.status.label}',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              if (inquiry.quotedPrice != null) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'QUOTED PRICE',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  inquiry.quotedPrice!,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.accent,
+                  ),
+                ),
+              ],
+              if ((inquiry.responseNote ?? '').isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  inquiry.responseNote!,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    Launchers.whatsapp(
+                      context,
+                      SettingsService.instance.support.phone,
+                      message:
+                          'Hello MachSetu, following up on '
+                          '${inquiry.reference} (${inquiry.machine}).',
+                    );
+                  },
+                  icon: const Icon(Icons.chat_outlined, size: 18),
+                  label: Text(
+                    inquiry.quotedPrice != null
+                        ? 'Discuss this quote'
+                        : 'Follow up with the desk',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,9 +245,7 @@ class _MyInquiriesScreenState extends State<MyInquiriesScreen> {
             for (final inquiry in inquiries) ...[
               _InquiryCard(
                 inquiry: inquiry,
-                onAction: () => inquiry.quotedPrice != null
-                    ? _todo('Quote ${inquiry.reference}')
-                    : _todo('Follow up ${inquiry.reference}'),
+                onAction: () => _openInquiry(inquiry),
               ),
               const SizedBox(height: 14),
             ],

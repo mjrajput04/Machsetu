@@ -32,6 +32,26 @@ export async function db(): Promise<Db> {
 
 /* ------------------------------------------------------------ documents -- */
 
+/** One saved delivery / installation address on a user account. */
+export interface AddressDoc {
+  /** Stable id generated on the server, e.g. "ADR-1730812345678-4821". */
+  id: string;
+  /** "Factory", "Head office" — the user's own name for it. */
+  label: string;
+  contactName: string;
+  /** Ten digits, matching the phone format used everywhere else. */
+  contactPhone: string;
+  line1: string;
+  line2: string;
+  landmark: string;
+  city: string;
+  state: string;
+  zip: string;
+  /** Exactly one address per user carries this. */
+  isDefault: boolean;
+  createdAt: Date;
+}
+
 export interface UserDoc {
   _id?: ObjectId;
   /** Human-facing id, e.g. U-2213. */
@@ -55,6 +75,9 @@ export interface UserDoc {
   city: string;
   state: string;
   zip: string;
+
+  /** Saved delivery addresses, managed from the app's My Addresses page. */
+  addresses?: AddressDoc[];
 
   // Security toggles (Flutter security screen)
   twoFactor: boolean;
