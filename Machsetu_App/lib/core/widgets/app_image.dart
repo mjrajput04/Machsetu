@@ -6,10 +6,13 @@ import '../services/api_client.dart';
 
 /// Draws a machine photo no matter where it lives.
 ///
-/// Every uploaded image and document is stored by the panel and served back
-/// over `/uploads/…` or `/api/files/<id>`, so the source is worked out from the
-/// path instead of at each call site. Bundled assets are only a fallback for
-/// when the server cannot be reached.
+/// Every uploaded image is stored by the panel and served back over
+/// `/uploads/…` or `/api/files/<id>`, so the source is worked out from the path
+/// instead of at each call site.
+///
+/// A photo that will not load falls back to a neutral placeholder and never to
+/// another machine's picture: substituting a lookalike would show a buyer
+/// equipment that is not the one they are looking at.
 class AppImage extends StatelessWidget {
   const AppImage(
     this.path, {
@@ -26,9 +29,6 @@ class AppImage extends StatelessWidget {
   final double? height;
   final ImageErrorWidgetBuilder? errorBuilder;
 
-  /// Offline copies of the demo catalogue, keyed by the same file names.
-  static const String _assetDir = 'assets/images/machines';
-
   /// Turns a stored path into something an [Image] can load.
   static String resolve(String path) {
     final trimmed = path.trim();
@@ -42,13 +42,6 @@ class AppImage extends StatelessWidget {
     return '${ApiClient.baseUrl}/uploads/$trimmed';
   }
 
-  /// Bundled stand-in for a database photo, matched on the file name.
-  static String? _bundled(String path) {
-    final name = path.split('/').last.split('?').first;
-    if (name.isEmpty || !name.contains('.')) return null;
-    return '$_assetDir/$name';
-  }
-
   static bool _isRemote(String resolved) =>
       resolved.startsWith('http://') || resolved.startsWith('https://');
 
@@ -56,17 +49,15 @@ class AppImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final source = resolve(path);
 
+    // Deliberately static: a grid of spinning indicators is noisier than a
+    // quiet block, and a continuous animation never lets a test settle.
     Widget placeholder({bool busy = false}) => Container(
       width: width,
       height: height,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       alignment: Alignment.center,
       child: busy
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? null
           : const Icon(Icons.precision_manufacturing, color: Colors.black26),
     );
 
@@ -97,7 +88,6 @@ class AppImage extends StatelessWidget {
       );
     }
 
-    final fallback = _bundled(path);
     return Image.network(
       source,
       fit: fit,
@@ -109,17 +99,7 @@ class AppImage extends StatelessWidget {
       gaplessPlayback: true,
       loadingBuilder: (context, child, progress) =>
           progress == null ? child : placeholder(busy: true),
-      // A demo photo the app already ships stands in while offline.
-      errorBuilder: fallback == null
-          ? onError
-          : (context, error, stack) => Image.asset(
-              fallback,
-              fit: fit,
-              width: width,
-              height: height,
-              cacheWidth: cacheWidth,
-              errorBuilder: onError,
-            ),
+      errorBuilder: onError,
     );
   }
 }

@@ -8,6 +8,7 @@ import '../../core/services/shell_tabs.dart';
 import '../../core/widgets/app_image.dart';
 import '../../core/widgets/machsetu_app_bar.dart';
 import '../product/data/product.dart';
+import 'data/recent_searches.dart';
 import 'data/search_results.dart';
 import '../../core/services/machine_filter.dart';
 import '../../core/widgets/filter_sheet.dart';
@@ -28,6 +29,10 @@ class _SearchScreenState extends State<SearchScreen> {
   MachineFilter _filter = const MachineFilter();
   final _focus = FocusNode();
   final _catalogue = CatalogueService.instance;
+  final _recents = RecentSearchStore.instance;
+
+  /// The recents panel only opens while the user is actually searching.
+  bool _searching = false;
 
   /// Falls back to the design's placeholder until a registered name is stored.
   String _initials = 'JD';
@@ -39,7 +44,24 @@ class _SearchScreenState extends State<SearchScreen> {
     _query.addListener(() => setState(() {}));
     _catalogue.addListener(_onCatalogue);
     _catalogue.load();
+    _recents.addListener(_onCatalogue);
+    _recents.load();
+    _focus.addListener(_onFocus);
     _loadUser();
+  }
+
+  /// Tapping into the box opens the recents; leaving it closes them again.
+  void _onFocus() {
+    if (!mounted) return;
+    setState(() => _searching = _focus.hasFocus);
+    // Leaving the box is the moment a query becomes a real search.
+    if (!_focus.hasFocus) _remember();
+  }
+
+  /// Files the current query in the recent list.
+  void _remember() {
+    final term = _query.text.trim();
+    if (term.isNotEmpty) _recents.record(term);
   }
 
   void _onCatalogue() {
@@ -70,6 +92,8 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _catalogue.removeListener(_onCatalogue);
+    _recents.removeListener(_onCatalogue);
+    _focus.removeListener(_onFocus);
     _query.dispose();
     _focus.dispose();
     super.dispose();
@@ -79,7 +103,9 @@ class _SearchScreenState extends State<SearchScreen> {
     _query
       ..text = term
       ..selection = TextSelection.collapsed(offset: term.length);
+    _recents.record(term);
     _focus.unfocus();
+    setState(() => _searching = false);
   }
 
   Future<void> _openFilters() async {
@@ -132,8 +158,17 @@ class _SearchScreenState extends State<SearchScreen> {
           _SearchPanel(
             controller: _query,
             focusNode: _focus,
+            // Recents belong to the act of searching, not to the results.
+            showRecents: _searching,
+            recents: _recents.terms,
             onClear: () => _query.clear(),
+            onSubmit: (_) {
+              _remember();
+              _focus.unfocus();
+            },
             onRecentTap: _applyRecent,
+            onRecentRemove: _recents.remove,
+            onClearRecents: _recents.clear,
           ),
           const SizedBox(height: 20),
           _ResultsHeader(
@@ -155,8 +190,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               const SizedBox(height: 16),
             ],
-          const SizedBox(height: 4),
-          const _RefineHint(),
         ],
       ),
     );
@@ -168,14 +201,26 @@ class _SearchPanel extends StatelessWidget {
   const _SearchPanel({
     required this.controller,
     required this.focusNode,
+    required this.showRecents,
+    required this.recents,
     required this.onClear,
+    required this.onSubmit,
     required this.onRecentTap,
+    required this.onRecentRemove,
+    required this.onClearRecents,
   });
 
   final TextEditingController controller;
   final FocusNode focusNode;
+
+  /// True while the box has focus — the only time recents are shown.
+  final bool showRecents;
+  final List<String> recents;
   final VoidCallback onClear;
+  final ValueChanged<String> onSubmit;
   final ValueChanged<String> onRecentTap;
+  final ValueChanged<String> onRecentRemove;
+  final VoidCallback onClearRecents;
 
   @override
   Widget build(BuildContext context) {
@@ -193,6 +238,7 @@ class _SearchPanel extends StatelessWidget {
             controller: controller,
             focusNode: focusNode,
             textInputAction: TextInputAction.search,
+            onSubmitted: onSubmit,
             style: const TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w500,
@@ -227,25 +273,54 @@ class _SearchPanel extends StatelessWidget {
               focusedBorder: _border(AppColors.navy, width: 1.4),
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'RECENT SEARCHES',
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
+          // Nothing below the box until the user is actually searching, and
+          // nothing at all until they have searched at least once.
+          if (showRecents && recents.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'RECENT SEARCHES',
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: onClearRecents,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Clear',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.brandBlue,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          for (final term in SearchData.recentSearches)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: _RecentChip(label: term, onTap: () => onRecentTap(term)),
+            const SizedBox(height: 12),
+            for (final term in recents)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _RecentChip(
+                    label: term,
+                    onTap: () => onRecentTap(term),
+                    onRemove: () => onRecentRemove(term),
+                  ),
+                ),
               ),
-            ),
+          ],
         ],
       ),
     );
@@ -260,10 +335,15 @@ class _SearchPanel extends StatelessWidget {
 }
 
 class _RecentChip extends StatelessWidget {
-  const _RecentChip({required this.label, required this.onTap});
+  const _RecentChip({
+    required this.label,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -292,6 +372,15 @@ class _RecentChip extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onRemove,
+              behavior: HitTestBehavior.opaque,
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.close, size: 15, color: AppColors.textMuted),
               ),
             ),
           ],
@@ -613,83 +702,6 @@ class _SpecColumn extends StatelessWidget {
 }
 
 /// Dashed callout nudging the buyer towards narrowing the result set.
-class _RefineHint extends StatelessWidget {
-  const _RefineHint();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _DashedBorderPainter(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
-        child: Column(
-          children: [
-            Container(
-              height: 46,
-              width: 46,
-              decoration: BoxDecoration(
-                color: AppColors.border.withValues(alpha: 0.5),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.explore_outlined,
-                size: 22,
-                color: AppColors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Refine filters to see more precise matches for your '
-              'requirements.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.5,
-                color: AppColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  static const double _radius = 14;
-  static const double _dash = 6;
-  static const double _gap = 5;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..color = AppColors.border;
-
-    final outline = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Offset.zero & size,
-          const Radius.circular(_radius),
-        ),
-      );
-
-    for (final metric in outline.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = (distance + _dash).clamp(0.0, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance = end + _gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Shown when the query and filters between them match nothing.
 class _NoResults extends StatelessWidget {
   const _NoResults();
 

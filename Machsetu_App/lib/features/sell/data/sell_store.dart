@@ -535,7 +535,9 @@ class SellStore extends ChangeNotifier {
 
   static final SellStore instance = SellStore._();
 
-  static const String _photos = 'assets/images/machines';
+  // Test-fixture paths only. Server-style, because the app ships no
+  // bundled machine photos.
+  static const String _photos = '/uploads';
 
   final List<SellListing> _listings = [];
 
@@ -669,6 +671,8 @@ class SellStore extends ChangeNotifier {
 
   /// Sample inventory so My Listings has content before the API exists.
   /// Called once from `main()`; drop that call to start empty.
+  /// Sample listings for the widget tests. Never called from the app.
+  @visibleForTesting
   void seedDemoListings() {
     if (_listings.isNotEmpty) return;
 

@@ -18,16 +18,6 @@ class HeroContent {
   final String subtitle;
   final String ctaLabel;
   final String image;
-
-  static const HeroContent fallback = HeroContent(
-    badge: 'VERIFIED LISTINGS',
-    title: 'Mastering Precision,\nMarket-Ready.',
-    subtitle:
-        'Access 450+ certified CNC and VMC centers with full '
-        'maintenance history and performance logs.',
-    ctaLabel: 'Explore Manifest',
-    image: MachineData.bannerPhoto,
-  );
 }
 
 /// Fee percentages behind every cart and checkout total.
@@ -124,7 +114,9 @@ class SettingsService extends ChangeNotifier {
   static final SettingsService instance = SettingsService._();
 
   List<String> _categories = const [];
-  List<HeroContent> _heroSlides = const [HeroContent.fallback];
+  // Empty until the panel answers: the home carousel hides itself rather
+  // than advertising claims nobody published.
+  List<HeroContent> _heroSlides = const [];
   Commercials _commercials = Commercials.fallback;
   SupportContent _support = SupportContent.fallback;
   SellOptionLists _sellOptions = SellOptionLists.empty;
@@ -269,11 +261,11 @@ class SettingsService extends ChangeNotifier {
   }
 
   static HeroContent _slide(Map<String, dynamic> json) => HeroContent(
-    badge: _text(json['badge'], HeroContent.fallback.badge),
-    title: _text(json['title'], HeroContent.fallback.title),
-    subtitle: _text(json['subtitle'], HeroContent.fallback.subtitle),
-    ctaLabel: _text(json['ctaLabel'], HeroContent.fallback.ctaLabel),
-    image: _text(json['image'], HeroContent.fallback.image),
+    badge: _text(json['badge'], ''),
+    title: _text(json['title'], ''),
+    subtitle: _text(json['subtitle'], ''),
+    ctaLabel: _text(json['ctaLabel'], 'View listings'),
+    image: _text(json['image'], ''),
   );
 
   /// Keeps the chip icons meaningful for whatever the desk names a category.

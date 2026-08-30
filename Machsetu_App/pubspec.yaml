@@ -97,8 +97,10 @@ flutter:
   # Drop logo / illustration files into assets/images/ — they are picked up
   # automatically, no pubspec change needed per file.
   assets:
+    # Brand artwork only. Machine photos come from the API — no sample
+    # catalogue is shipped, so the app can never show a machine that is not
+    # actually listed.
     - assets/images/
-    - assets/images/machines/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

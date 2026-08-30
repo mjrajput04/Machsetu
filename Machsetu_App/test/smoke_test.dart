@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,21 +41,26 @@ import 'package:machsetu_app/features/support/help_support_screen.dart';
 import 'package:machsetu_app/features/support/terms_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:machsetu_app/core/services/upload_service.dart';
+import 'fixtures/demo_machines.dart';
+import 'fixtures/network_images.dart';
 
 void main() {
   // Phone-sized viewport so overflow assertions reflect a real handset.
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    // Listing photos are network images; without this the harness answers
+    // every request with a 400 and the screen throws while loading.
+    HttpOverrides.global = TestImageHttpOverrides();
     // Both are process-wide singletons — reset so tests stay independent.
     ShellTabs.go(ShellTabs.home);
     CartStore.instance.clear();
 
     // The app ships no sample data any more, so a test that needs a
     // catalogue, an inquiry or an alert to work with puts one there itself.
-    CatalogueService.instance.seed(MachineData.all);
+    CatalogueService.instance.seed(DemoMachines.all);
     SettingsService.instance.seed(
       categories: [
-        for (final (_, name) in MachineData.categories)
+        for (final (_, name) in DemoMachines.categories)
           if (name != MachineData.allCategory) name,
       ],
     );
@@ -89,7 +95,8 @@ void main() {
     await tester.tap(find.text('Search'));
     await tester.pumpAndSettle();
 
-    expect(find.text('RECENT SEARCHES'), findsOneWidget);
+    // Recents stay hidden until the box is focused and history exists.
+    expect(find.text('RECENT SEARCHES'), findsNothing);
     // Search cards are built from the same catalogue the home tab shows.
     expect(find.text('DMG MORI DMU 50'), findsOneWidget);
     expect(find.text('₹1,45,00,000'), findsOneWidget);
@@ -1166,26 +1173,26 @@ void main() {
     expect(SellOptions.inspectionPoints.length, 12);
   });
 
-  test('the catalogue holds 15 machines, 3 in every category', () {
-    expect(MachineData.all.length, 15);
+  test('the test fixture holds 15 machines, 3 in every category', () {
+    expect(DemoMachines.all.length, 15);
 
     // "All" is a filter, not a category a machine belongs to.
-    final categories = MachineData.categories
+    final categories = DemoMachines.categories
         .map((c) => c.$2)
         .where((c) => c != MachineData.allCategory);
     expect(categories.length, 5);
 
     for (final category in categories) {
       expect(
-        MachineData.forCategory(category).length,
+        DemoMachines.forCategory(category).length,
         3,
         reason: '$category should hold exactly 3 machines',
       );
     }
-    expect(MachineData.forCategory(MachineData.allCategory).length, 15);
+    expect(DemoMachines.forCategory(MachineData.allCategory).length, 15);
 
     // Every entry carries real detail rather than placeholders.
-    for (final m in MachineData.all) {
+    for (final m in DemoMachines.all) {
       expect(m.images, isNotEmpty, reason: '${m.title} needs a photo');
       expect(m.machineDetails.length, greaterThanOrEqualTo(8));
       expect(m.specifications.length, greaterThanOrEqualTo(8));
@@ -1239,7 +1246,7 @@ void main() {
   testWidgets('the product page shows that machine\'s real specifications', (
     tester,
   ) async {
-    final machine = MachineData.all.firstWhere(
+    final machine = DemoMachines.all.firstWhere(
       (m) => m.title == 'Sodick AG400L',
     );
 

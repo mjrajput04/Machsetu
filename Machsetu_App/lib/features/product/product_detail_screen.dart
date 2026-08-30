@@ -13,6 +13,7 @@ import 'data/product.dart';
 import 'widgets/product_hero.dart';
 import 'data/saved_store.dart';
 import '../../core/utils/launchers.dart';
+import '../../core/services/catalogue_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key, required this.product});
@@ -69,6 +70,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
 
   /// Copies a plain-text summary — the marketplace has no public share link
   /// yet, so the clipboard is the honest option.
+
+  /// Live catalogue, not the bundled demo list: machines in the same category
+  /// first, then anything else, with this machine itself left out.
+  List<Machine> _similarMachines() {
+    final all = CatalogueService.instance.all
+        .where((m) => m.title != widget.product.title)
+        .toList();
+    if (all.isEmpty) return const [];
+
+    final type = widget.product.equipmentType.trim().toLowerCase();
+    final sameType = all
+        .where((m) => m.category.trim().toLowerCase() == type)
+        .toList();
+    final rest = all.where((m) => !sameType.contains(m)).toList();
+
+    return [...sameType, ...rest].take(8).toList();
+  }
+
   Future<void> _shareProduct() async {
     final product = widget.product;
     final summary = [
@@ -184,6 +203,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
           ),
           SliverToBoxAdapter(
             child: _SimilarMachines(
+              machines: _similarMachines(),
               onViewAll: () =>
                   Navigator.of(context).pushNamed(AppRoutes.machines),
               onTap: (machine) => Navigator.of(context).push(
@@ -363,6 +383,12 @@ class _SpecsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A listing with no published specification shows no spec section, rather
+    // than a heading over an empty space.
+    if (product.heroSpecs.isEmpty && product.detailPairs.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -561,6 +587,10 @@ class _OverviewSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (product.overview.isEmpty && product.tags.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -656,6 +686,8 @@ class _DocumentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (product.documents.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -723,13 +755,20 @@ class _DocumentsSection extends StatelessWidget {
 }
 
 class _SimilarMachines extends StatelessWidget {
-  const _SimilarMachines({required this.onViewAll, required this.onTap});
+  const _SimilarMachines({
+    required this.machines,
+    required this.onViewAll,
+    required this.onTap,
+  });
 
+  final List<Machine> machines;
   final VoidCallback onViewAll;
   final ValueChanged<Machine> onTap;
 
   @override
   Widget build(BuildContext context) {
+    if (machines.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -759,10 +798,10 @@ class _SimilarMachines extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: MachineData.recent.length,
+            itemCount: machines.length,
             separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
-              final machine = MachineData.recent[index];
+              final machine = machines[index];
               return _SimilarCard(
                 machine: machine,
                 isNew: index == 0,

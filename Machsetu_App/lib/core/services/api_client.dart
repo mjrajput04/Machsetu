@@ -29,8 +29,10 @@ class ApiClient {
 
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
-  /// The deployed marketplace.
-  static const String production = 'http://localhost:3000';
+  /// The deployed marketplace. A release APK must point here — release builds
+  /// also refuse plain HTTP, so a localhost value would fail silently on a
+  /// phone. Use --dart-define for local work instead of editing this.
+  static const String production = 'https://machsetu.com';
 
   static String get baseUrl => _override.isEmpty ? production : _override;
 

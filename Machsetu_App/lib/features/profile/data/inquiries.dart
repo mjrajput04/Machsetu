@@ -65,7 +65,9 @@ class Inquiry {
 class InquiryData {
   InquiryData._();
 
-  static const String _photos = 'assets/images/machines';
+  // Test-fixture paths only. Server-style, because the app ships no
+  // bundled machine photos.
+  static const String _photos = '/uploads';
 
   static const List<Inquiry> all = [
     Inquiry(

@@ -135,7 +135,9 @@ class OrderStore extends ChangeNotifier {
 
   static final OrderStore instance = OrderStore._();
 
-  static const String _photos = 'assets/images/machines';
+  // Test-fixture paths only. Server-style, because the app ships no
+  // bundled machine photos.
+  static const String _photos = '/uploads';
 
   final List<Order> _orders = [];
 
@@ -270,6 +272,9 @@ class OrderStore extends ChangeNotifier {
 
   /// Sample pipeline so the Orders screen has content before the API exists.
   /// Called once from `main()`; drop that call to start with a clean slate.
+  /// Sample orders for the widget tests. Never called from the app: the
+  /// orders list shows exactly what the API returns.
+  @visibleForTesting
   void seedDemoOrders() {
     if (_orders.isNotEmpty) return;
 

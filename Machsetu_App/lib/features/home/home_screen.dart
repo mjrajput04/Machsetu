@@ -112,12 +112,16 @@ class _HomeScreenState extends State<HomeScreen> {
               onFilter: _openFilters,
               onSubmit: (_) => ShellTabs.go(ShellTabs.search),
             ),
-            const SizedBox(height: 18),
-            _PromoCarousel(
-              slides: _settings.heroSlides,
-              onExplore: () =>
-                  Navigator.of(context).pushNamed(AppRoutes.machines),
-            ),
+            // The banner and its spacing appear together, so an unpublished
+            // carousel leaves no gap behind.
+            if (_settings.heroSlides.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              _PromoCarousel(
+                slides: _settings.heroSlides,
+                onExplore: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.machines),
+              ),
+            ],
             const SizedBox(height: 22),
             const _SectionLabel('ACTIVE CATEGORIES'),
             const SizedBox(height: 12),
@@ -368,9 +372,10 @@ class _PromoCarouselState extends State<_PromoCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final slides = widget.slides.isEmpty
-        ? const [HeroContent.fallback]
-        : widget.slides;
+    // No published slides, no banner. The home page simply starts at the
+    // search box rather than showing a made-up promotion.
+    final slides = widget.slides;
+    if (slides.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
       height: _height,
