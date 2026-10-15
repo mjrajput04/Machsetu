@@ -474,16 +474,18 @@ export async function syncCounter(
   prefix: string,
   start: number,
   collection: string,
+  /** Field holding the id — users keep theirs in `code`, the rest in `id`. */
+  field = "id",
 ): Promise<void> {
   const database = await db();
   const docs = await database
-    .collection<{ id: string }>(collection)
-    .find({}, { projection: { id: 1 } })
+    .collection<Record<string, unknown>>(collection)
+    .find({}, { projection: { [field]: 1 } })
     .toArray();
 
   let highest = 0;
   for (const doc of docs) {
-    const id = String(doc.id ?? "");
+    const id = String(doc[field] ?? "");
     if (!id.startsWith(prefix)) continue;
     const n = Number(id.slice(prefix.length));
     if (Number.isFinite(n) && n - start > highest) highest = n - start;
@@ -534,7 +536,7 @@ export async function ensureIndexes(): Promise<void> {
   await (await inquiries()).createIndex({ userCode: 1 });
   await (await files()).createIndex({ id: 1 }, { unique: true });
 
-  await syncCounter("users", "U-", 2200, "users");
+  await syncCounter("users", "U-", 2200, "users", "code");
   await syncCounter("products", "MS-", 1000, "products");
   await syncCounter("requests", "REQ-", 5500, "sellRequests");
   await syncCounter("inquiries", "RFQ-", 4470, "inquiries");
