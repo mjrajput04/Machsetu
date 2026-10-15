@@ -534,6 +534,7 @@ export async function ensureIndexes(): Promise<void> {
   await (await inquiries()).createIndex({ userCode: 1 });
   await (await files()).createIndex({ id: 1 }, { unique: true });
 
+  await syncCounter("users", "U-", 2200, "users");
   await syncCounter("products", "MS-", 1000, "products");
   await syncCounter("requests", "REQ-", 5500, "sellRequests");
   await syncCounter("inquiries", "RFQ-", 4470, "inquiries");

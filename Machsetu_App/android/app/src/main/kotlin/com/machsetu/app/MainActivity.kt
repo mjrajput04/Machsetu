@@ -1,4 +1,4 @@
-package com.machsetu.machsetu_app
+package com.machsetu.app
 
 import io.flutter.embedding.android.FlutterActivity
 

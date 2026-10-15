@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { ensureIndexes, otps, users } from "@/server/db";
+import { ensureIndexes, nextId, otps, users } from "@/server/db";
 import { fail, hashPassword, isEmail, normEmail, normPhone, ok } from "@/server/auth";
 
 /**
@@ -9,10 +9,13 @@ import { fail, hashPassword, isEmail, normEmail, normPhone, ok } from "@/server/
  */
 const DEFAULT_OTP = process.env.DEFAULT_OTP ?? "123456";
 
-async function nextUserCode(): Promise<string> {
-  const col = await users();
-  const count = await col.countDocuments();
-  return `U-${2200 + count + 1}`;
+/**
+ * Next account code, e.g. `U-2214`. Drawn from a counter rather than the
+ * user count, so a deleted account can never hand its code to the next sign-up
+ * and trip the unique index.
+ */
+function nextUserCode(): Promise<string> {
+  return nextId("users", "U-", 2200);
 }
 
 /**

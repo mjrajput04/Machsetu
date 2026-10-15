@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../core/routes/app_routes.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/session_store.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/validators.dart';
+import 'data/address_store.dart';
 
 class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
@@ -140,6 +142,35 @@ class _SecurityScreenState extends State<SecurityScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('${session.device} signed out')));
+  }
+
+  /// Google Play requires in-app deletion for any app with sign-up. The
+  /// password is asked again so a borrowed, unlocked phone cannot do it.
+  Future<void> _deleteAccount() async {
+    final deleted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: const _DeleteAccountSheet(),
+      ),
+    );
+
+    if (deleted != true || !mounted) return;
+    // Same clean-up as logging out: per-account data must not linger.
+    AddressStore.instance.reset();
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your account has been deleted')),
+    );
   }
 
   @override
@@ -293,6 +324,71 @@ class _SecurityScreenState extends State<SecurityScreen> {
                     style: const TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                const _GroupLabel('DANGER ZONE'),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.danger.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: _deleteAccount,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 15, 14, 15),
+                      child: Row(
+                        children: [
+                          Container(
+                            height: 38,
+                            width: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.danger.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: const Icon(
+                              Icons.delete_forever_outlined,
+                              size: 19,
+                              color: AppColors.danger,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Delete Account',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Permanently erase your account and data',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right,
+                            size: 19,
+                            color: AppColors.textMuted,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -744,6 +840,130 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Explains what is erased, then asks for the password before deleting.
+class _DeleteAccountSheet extends StatefulWidget {
+  const _DeleteAccountSheet();
+
+  @override
+  State<_DeleteAccountSheet> createState() => _DeleteAccountSheetState();
+}
+
+class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _password = TextEditingController();
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _saving = true);
+    final error = await SessionStore.instance.deleteAccount(_password.text);
+    if (!mounted) return;
+    setState(() => _saving = false);
+
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const bullet = TextStyle(
+      fontSize: 13.5,
+      height: 1.55,
+      color: AppColors.textSecondary,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 24),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Delete Account?',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.w800,
+                color: AppColors.danger,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This permanently erases your profile, company details, saved '
+              'addresses, machine listings, inquiries and notifications. It '
+              'cannot be undone.',
+              style: bullet,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Records of orders you placed are kept for tax purposes, with '
+              'your name, email and phone removed.',
+              style: bullet,
+            ),
+            const SizedBox(height: 18),
+            _PasswordField(
+              label: 'Enter your password to confirm',
+              controller: _password,
+              validator: (value) => (value == null || value.isEmpty)
+                  ? 'Enter your password'
+                  : null,
+            ),
+            const SizedBox(height: 22),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: _saving ? null : _submit,
+              child: _saving
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Permanently Delete Account',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+              ),
+              onPressed: _saving ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
             ),
           ],
         ),

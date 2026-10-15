@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/services/api_client.dart';
 import '../../core/services/settings_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/launchers.dart';
 
 class TermsScreen extends StatefulWidget {
   const TermsScreen({super.key});
@@ -106,8 +108,9 @@ class _TermsScreenState extends State<TermsScreen> {
             'order to operate the marketplace, and share them with sellers, '
             'logistics partners and the escrow provider only to the extent '
             'needed to complete your transaction.',
-        'We do not sell personal data. You may request export or deletion of '
-            'your account data through Help & Support.',
+        'We do not sell personal data. You can delete your account and its '
+            'data at any time from Profile → Security → Delete Account, or at '
+            'machsetu.com/delete-account.',
       ],
     ),
     (
@@ -206,10 +209,28 @@ class _TermsScreenState extends State<TermsScreen> {
             const SizedBox(height: 12),
           ],
           const Divider(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          for (final (label, path) in const [
+            ('Full Privacy Policy', '/privacy'),
+            ('Terms of Use on the web', '/terms'),
+          ])
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.open_in_new, color: AppColors.brandBlue),
+              title: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.brandBlue,
+                ),
+              ),
+              onTap: () => Launchers.url(context, '${ApiClient.baseUrl}$path'),
+            ),
+          const SizedBox(height: 8),
           const Text(
             'Questions about these terms? Reach us through Help & Support or '
-            'write to legal@machsetu.in.',
+            'write to machsetu@gmail.com.',
             style: TextStyle(
               fontSize: 12.5,
               height: 1.6,

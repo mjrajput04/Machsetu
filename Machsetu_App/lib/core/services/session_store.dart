@@ -112,6 +112,23 @@ class SessionStore {
     return null;
   }
 
+  /// Permanently deletes the account on the server, then forgets the session.
+  /// Returns an error message, or null once the account is gone.
+  Future<String?> deleteAccount(String password) async {
+    final auth = await token();
+    if (auth == null) return 'Please sign in again';
+
+    final result = await ApiClient.instance.post(
+      '/api/account/delete',
+      token: auth,
+      body: {'password': password},
+    );
+    if (!result.ok) return result.message;
+
+    await clear();
+    return null;
+  }
+
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyToken);
