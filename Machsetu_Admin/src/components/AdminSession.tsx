@@ -87,7 +87,7 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     localStorage.removeItem(KEY);
     window.dispatchEvent(new Event(EVENT));
-    router.push("/login");
+    router.push("/admin/login");
   }, [router]);
 
   const value = useMemo(

@@ -256,6 +256,26 @@ export async function files(): Promise<Collection<FileDoc>> {
   return (await db()).collection<FileDoc>("files");
 }
 
+/** A message sent from the website's contact page. */
+export interface ContactMessageDoc {
+  _id?: ObjectId;
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  topic: string;
+  message: string;
+  status: "New" | "Read";
+  createdAt: Date;
+}
+
+export async function contactMessages(): Promise<
+  Collection<ContactMessageDoc>
+> {
+  return (await db()).collection<ContactMessageDoc>("contactMessages");
+}
+
 export async function settings(): Promise<Collection<SettingsDoc>> {
   return (await db()).collection<SettingsDoc>("settings");
 }

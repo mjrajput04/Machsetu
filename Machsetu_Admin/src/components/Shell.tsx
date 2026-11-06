@@ -6,12 +6,6 @@ import { useAdminSession } from "./AdminSession";
 import { Sidebar } from "./Sidebar";
 
 /**
- * Pages anyone can open without signing in — the policies Google Play links
- * to from the store listing, and the account-deletion form.
- */
-const PUBLIC_PATHS = ["/privacy", "/terms", "/delete-account"];
-
-/**
  * App frame: a fixed sidebar on desktop, a slide-over on mobile, and a
  * sticky top bar with search and notifications.
  */
@@ -21,16 +15,16 @@ export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isLogin = pathname === "/login";
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isLogin = pathname === "/admin/login";
 
   // Bounce straight to the sign-in page when there is no session.
   useEffect(() => {
-    if (ready && !token && !isLogin && !isPublic) router.replace("/login");
-  }, [ready, token, isLogin, isPublic, router]);
+    if (ready && !token && !isLogin) router.replace("/admin/login");
+  }, [ready, token, isLogin, router]);
 
-  // The login and public pages paint their own full-screen layout.
-  if (isLogin || isPublic) return <>{children}</>;
+  // The login page paints its own full-screen layout. Public pages (the
+  // website, privacy, terms) sit outside /admin and never reach this frame.
+  if (isLogin) return <>{children}</>;
 
   if (!ready || !token) {
     return (

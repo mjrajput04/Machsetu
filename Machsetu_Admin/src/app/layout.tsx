@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AdminSessionProvider } from "@/components/AdminSession";
-import { Shell } from "@/components/Shell";
+import { SITE_URL } from "@/lib/site";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -10,11 +9,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MachSetu Admin Console",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "MachSetu — Buy & Sell Pre-Owned CNC and VMC Machines in India",
+    template: "%s · MachSetu",
+  },
   description:
-    "Operations console for the MachSetu industrial machine marketplace.",
+    "MachSetu is India's marketplace for verified second-hand CNC, VMC, lathe, EDM and grinding machines. Every listing is inspected, payments are held in escrow, and freight is handled end to end.",
   // src/app/icon.png is picked up automatically for the tab and bookmarks.
   applicationName: "MachSetu",
+  openGraph: {
+    type: "website",
+    siteName: "MachSetu",
+    locale: "en_IN",
+    images: ["/machines/vmc_machining_center.jpg"],
+  },
 };
 
 export default function RootLayout({
@@ -22,11 +31,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
-        <AdminSessionProvider>
-          <Shell>{children}</Shell>
-        </AdminSessionProvider>
-      </body>
+      <body className={`${inter.variable} antialiased`}>{children}</body>
     </html>
   );
 }

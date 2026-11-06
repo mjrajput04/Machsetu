@@ -9,25 +9,28 @@ import { cx } from "./ui";
 const NAV = [
   {
     section: "Overview",
-    items: [{ href: "/", label: "Dashboard", icon: IconGrid }],
+    items: [{ href: "/admin", label: "Dashboard", icon: IconGrid }],
   },
   {
     section: "Marketplace",
     items: [
-      { href: "/products", label: "Products", icon: IconBox },
-      { href: "/products/new", label: "Add Product", icon: IconPlus },
-      { href: "/requests", label: "Sell Requests", icon: IconInbox, badge: 3 },
-      { href: "/inquiries", label: "Inquiries", icon: IconChat, badge: 2 },
-      { href: "/orders", label: "Orders", icon: IconTruck },
+      { href: "/admin/products", label: "Products", icon: IconBox },
+      { href: "/admin/products/new", label: "Add Product", icon: IconPlus },
+      { href: "/admin/requests", label: "Sell Requests", icon: IconInbox, badge: 3 },
+      { href: "/admin/inquiries", label: "Inquiries", icon: IconChat, badge: 2 },
+      { href: "/admin/orders", label: "Orders", icon: IconTruck },
     ],
   },
   {
     section: "People",
-    items: [{ href: "/users", label: "Users", icon: IconUsers }],
+    items: [
+      { href: "/admin/users", label: "Users", icon: IconUsers },
+      { href: "/admin/messages", label: "Website Messages", icon: IconMail },
+    ],
   },
   {
     section: "System",
-    items: [{ href: "/settings", label: "Settings", icon: IconCog }],
+    items: [{ href: "/admin/settings", label: "Settings", icon: IconCog }],
   },
 ];
 
@@ -62,13 +65,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </p>
             <ul className="space-y-1">
               {group.items.map((item) => {
-                // "/" would otherwise prefix-match every route.
+                // "/admin" would otherwise prefix-match every route.
                 const active =
-                  item.href === "/"
-                    ? pathname === "/"
+                  item.href === "/admin"
+                    ? pathname === "/admin"
                     : pathname === item.href ||
                       (pathname.startsWith(`${item.href}/`) &&
-                        item.href !== "/products");
+                        item.href !== "/admin/products");
                 const Icon = item.icon;
 
                 return (
@@ -214,6 +217,15 @@ function IconCog({ className }: IconProps) {
     <svg {...base(className)}>
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function IconMail({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-10 6L2 7" />
     </svg>
   );
 }

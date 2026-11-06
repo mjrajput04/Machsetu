@@ -50,3 +50,67 @@ body {
   background: #94a3b8;
   background-clip: content-box;
 }
+
+/* ------------------------------------------------------------- website -- */
+
+/* Faint blueprint grid behind dark hero panels. */
+.site-grid {
+  background-image:
+    linear-gradient(to right, #fff 1px, transparent 1px),
+    linear-gradient(to bottom, #fff 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+}
+
+/* Slow push-in on the active hero photo. */
+@keyframes site-kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+.site-kenburns {
+  animation: site-kenburns 7s ease-out both;
+}
+
+/* Fills the active carousel dot over the slide's lifetime. */
+@keyframes site-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+.site-progress {
+  animation-name: site-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* Fades sections up as they scroll into view. */
+@keyframes site-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.site-rise {
+  animation: site-rise 0.7s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-kenburns,
+  .site-rise {
+    animation: none;
+  }
+  .site-progress {
+    animation-duration: 0s !important;
+  }
+}

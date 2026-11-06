@@ -390,7 +390,7 @@ export default function ProductForm({
         subtitle={subtitle}
         actions={
           <>
-            <Link href="/products">
+            <Link href="/admin/products">
               <Button variant="secondary">Cancel</Button>
             </Link>
             <Button
