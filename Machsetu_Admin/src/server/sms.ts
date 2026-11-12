@@ -19,8 +19,8 @@ const KEY = process.env.SMSINDORI_KEY?.trim() ?? "";
 const SENDER = process.env.SMSINDORI_SENDER?.trim() || "ELIVOR";
 const TEMPLATE_ID =
   process.env.SMSINDORI_TEMPLATE_ID?.trim() || "1077453050123323726";
-/** 1 = Transactional on SMS Indori; 16 = TransOTP, if the account has it. */
-const ROUTE = process.env.SMSINDORI_ROUTE?.trim() || "1";
+/** The route SMS Indori assigned this account for transactional OTPs. */
+const ROUTE = process.env.SMSINDORI_ROUTE?.trim() || "06";
 
 /** DLT template 1077453050123323726, exactly as approved. */
 const TEMPLATE =
@@ -50,12 +50,12 @@ function newCode(): string {
 }
 
 /**
- * Wording SMS Indori uses when it turns a request down. It answers 200 with
- * plain text either way — e.g. "Provide valid Authentic Token Key." or
- * "Please fill the Authentic Token Key." — so the body has to be read.
+ * SMS Indori answers 200 whether or not it takes the message, so success is
+ * read from the body: an accepted message comes back as
+ * "msg-id : MzY0MDY5MQ==", and anything else ("Please Provide valid
+ * routeid", "Provide valid Authentic Token Key.") is a refusal.
  */
-const REJECTED =
-  /error|invalid|fail|insufficient|wrong|denied|blocked|unauthori|incorrect|provide|please|not /i;
+const ACCEPTED = /^msg-id\s*:/i;
 
 /**
  * Hands one OTP to SMS Indori. Returns null when it was accepted, or a
@@ -80,7 +80,7 @@ async function deliver(phone: string, code: string): Promise<string | null> {
     // Logged without the key, so the desk can see what the gateway said.
     console.info(`SMS to ******${phone.slice(-4)}: ${response.status} ${body.slice(0, 200)}`);
 
-    if (!response.ok || REJECTED.test(body)) {
+    if (!response.ok || !ACCEPTED.test(body)) {
       return "We couldn't send the code right now. Please try again in a minute.";
     }
     return null;
