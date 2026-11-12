@@ -1,6 +1,6 @@
-import bcrypt from "bcryptjs";
-import { ensureIndexes, otps, users } from "@/server/db";
+import { ensureIndexes, users } from "@/server/db";
 import { fail, normPhone, ok } from "@/server/auth";
+import { issueOtp } from "@/server/sms";
 
 /** Issues a fresh registration OTP, replacing any outstanding one. */
 export async function POST(request: Request) {
@@ -13,17 +13,12 @@ export async function POST(request: Request) {
   const col = await users();
   if (!(await col.findOne({ phone }))) return fail("Account not found", 404);
 
-  const code = process.env.DEFAULT_OTP ?? "123456";
-  const otpCol = await otps();
-  await otpCol.deleteMany({ phone, purpose: "registration" });
-  await otpCol.insertOne({
-    phone,
-    codeHash: await bcrypt.hash(code, 10),
-    purpose: "registration",
-    attempts: 0,
-    expiresAt: new Date(Date.now() + 10 * 60_000),
-    createdAt: new Date(),
-  });
+  const otp = await issueOtp(phone, "registration");
+  if (otp.error) return fail(otp.error, 429);
 
-  return ok({ message: "A new code has been sent.", devOtp: code });
+  return ok({
+    message: "A new code has been sent.",
+    // Only present while no SMS gateway is configured.
+    ...(otp.devCode ? { devOtp: otp.devCode } : {}),
+  });
 }

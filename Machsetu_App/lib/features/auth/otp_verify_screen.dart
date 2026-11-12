@@ -126,9 +126,15 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Future<void> _resend() async {
     if (_secondsLeft > 0 || _resending) return;
     setState(() => _resending = true);
-    await AuthService.instance.sendOtp(widget.args.phone);
+    final result = await AuthService.instance.sendOtp(widget.args.phone);
     if (!mounted) return;
     setState(() => _resending = false);
+    if (!result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message ?? 'Could not send a new code')),
+      );
+      return;
+    }
     _startTimer();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('A new code was sent to $_maskedPhone')),
@@ -207,39 +213,42 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                       onCompleted: (_) => _verify(),
                     ),
                     const SizedBox(height: 20),
-                    // Demo helper — remove once a real SMS gateway is wired up.
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.brandBlue.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: AppColors.brandBlue,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Demo mode — use code '
-                              '${AuthService.instance.lastIssuedOtp ?? AuthService.demoOtp}',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.navy,
+                    // Shown only while the server has no SMS gateway and echoes
+                    // the code back; with real SMS the code is on the phone.
+                    if (AuthService.instance.lastIssuedOtp != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.brandBlue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: AppColors.brandBlue,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Demo mode — use code '
+                                '${AuthService.instance.lastIssuedOtp}',
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.navy,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 22),
                     PrimaryButton(
                       label: isRegistration

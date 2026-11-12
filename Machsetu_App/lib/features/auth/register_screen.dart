@@ -72,8 +72,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    await AuthService.instance.sendOtp(phone);
-    if (!mounted) return;
+    // Registration has already sent the code; asking again would send a
+    // second SMS and void the first.
     setState(() => _loading = false);
 
     Navigator.of(context).pushNamed(

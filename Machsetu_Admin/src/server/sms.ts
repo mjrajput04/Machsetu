@@ -1,0 +1,153 @@
+import bcrypt from "bcryptjs";
+
+import { otps } from "./db";
+
+/**
+ * OTP delivery over SMS, through SMS Indori.
+ *
+ * India's DLT rules only let a message through when it matches a registered
+ * template word for word, from a registered sender, through a bound
+ * telemarketer chain. The template below is the one approved on the Airtel
+ * DLT portal for ELIVOR VALVES; change it there first, then here.
+ *
+ * Until SMSINDORI_KEY is set the code falls back to a fixed number so local
+ * work and testing still run — `smsIsLive()` says which mode is in force.
+ */
+const ENDPOINT = "http://sms.smsindori.com/http-tokenkeyapi.php";
+
+const KEY = process.env.SMSINDORI_KEY?.trim() ?? "";
+const SENDER = process.env.SMSINDORI_SENDER?.trim() || "ELIVOR";
+const TEMPLATE_ID =
+  process.env.SMSINDORI_TEMPLATE_ID?.trim() || "1077453050123323726";
+/** 1 = Transactional on SMS Indori; 16 = TransOTP, if the account has it. */
+const ROUTE = process.env.SMSINDORI_ROUTE?.trim() || "1";
+
+/** DLT template 1077453050123323726, exactly as approved. */
+const TEMPLATE =
+  "{#numeric#} is your OTP for MachSetu login. Valid for 10 minutes. Do not share it with anyone. - ELIVOR VALVES";
+
+/** The stand-in used only while no gateway is configured. */
+const FALLBACK_OTP = process.env.DEFAULT_OTP ?? "123456";
+
+/** How long a code stays valid — the template promises 10 minutes. */
+export const OTP_TTL_MINUTES = 10;
+
+/** A number can't ask for a new code more often than this. */
+const COOLDOWN_SECONDS = 30;
+
+/** Nor more than this many times in an hour — every send costs a credit. */
+const MAX_SENDS_PER_HOUR = 5;
+
+/** True once a real gateway is configured; false means the fixed code. */
+export function smsIsLive(): boolean {
+  return KEY !== "";
+}
+
+/** Six digits, evenly distributed, from the platform's secure source. */
+function newCode(): string {
+  const bytes = crypto.getRandomValues(new Uint32Array(1));
+  return String(bytes[0] % 1_000_000).padStart(6, "0");
+}
+
+/**
+ * Wording SMS Indori uses when it turns a request down. It answers 200 with
+ * plain text either way — e.g. "Provide valid Authentic Token Key." or
+ * "Please fill the Authentic Token Key." — so the body has to be read.
+ */
+const REJECTED =
+  /error|invalid|fail|insufficient|wrong|denied|blocked|unauthori|incorrect|provide|please|not /i;
+
+/**
+ * Hands one OTP to SMS Indori. Returns null when it was accepted, or a
+ * message saying why it wasn't.
+ */
+async function deliver(phone: string, code: string): Promise<string | null> {
+  const params = new URLSearchParams({
+    "authentic-key": KEY,
+    senderid: SENDER,
+    route: ROUTE,
+    number: `91${phone}`,
+    message: TEMPLATE.replace("{#numeric#}", code),
+    templateid: TEMPLATE_ID,
+  });
+
+  try {
+    const response = await fetch(`${ENDPOINT}?${params}`, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = (await response.text()).trim();
+
+    // Logged without the key, so the desk can see what the gateway said.
+    console.info(`SMS to ******${phone.slice(-4)}: ${response.status} ${body.slice(0, 200)}`);
+
+    if (!response.ok || REJECTED.test(body)) {
+      return "We couldn't send the code right now. Please try again in a minute.";
+    }
+    return null;
+  } catch (error) {
+    console.error("OTP send failed", error);
+    return "We couldn't reach the SMS service. Please try again in a minute.";
+  }
+}
+
+export interface OtpIssue {
+  /** Set when no code was sent; show it to the caller. */
+  error: string | null;
+  /** Returned only while no gateway is configured, so testing still works. */
+  devCode: string | null;
+}
+
+/**
+ * Issues a fresh OTP for a number: stores its hash, then sends it.
+ *
+ * Any earlier code for the same purpose is replaced, so only the newest one
+ * can be used. Repeated requests are throttled so nobody can drain the SMS
+ * balance by hammering "Resend".
+ */
+export async function issueOtp(
+  phone: string,
+  purpose: "registration" | "reset",
+): Promise<OtpIssue> {
+  const col = await otps();
+  const now = Date.now();
+  const previous = await col.findOne({ phone, purpose });
+
+  if (previous && now - previous.createdAt.getTime() < COOLDOWN_SECONDS * 1000) {
+    return {
+      error: `Please wait ${COOLDOWN_SECONDS} seconds before asking for a new code.`,
+      devCode: null,
+    };
+  }
+
+  const windowStart =
+    previous?.windowStart && now - previous.windowStart.getTime() < 3_600_000
+      ? previous.windowStart
+      : new Date(now);
+  const sends = windowStart === previous?.windowStart ? (previous.sends ?? 1) + 1 : 1;
+  if (sends > MAX_SENDS_PER_HOUR) {
+    return {
+      error: "Too many codes requested for this number. Please try again in an hour.",
+      devCode: null,
+    };
+  }
+
+  const live = smsIsLive();
+  const code = live ? newCode() : FALLBACK_OTP;
+
+  await col.deleteMany({ phone, purpose });
+  await col.insertOne({
+    phone,
+    purpose,
+    codeHash: await bcrypt.hash(code, 10),
+    attempts: 0,
+    sends,
+    windowStart,
+    expiresAt: new Date(now + OTP_TTL_MINUTES * 60 * 1000),
+    createdAt: new Date(now),
+  });
+
+  if (!live) return { error: null, devCode: code };
+
+  const error = await deliver(phone, code);
+  return { error, devCode: null };
+}

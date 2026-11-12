@@ -102,6 +102,9 @@ export interface OtpDoc {
   codeHash: string;
   purpose: "registration" | "reset";
   attempts: number;
+  /** Codes sent to this number since `windowStart`, for the hourly cap. */
+  sends?: number;
+  windowStart?: Date;
   expiresAt: Date;
   createdAt: Date;
 }

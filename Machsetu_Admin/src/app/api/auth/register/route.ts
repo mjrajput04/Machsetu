@@ -1,13 +1,6 @@
-import bcrypt from "bcryptjs";
-import { ensureIndexes, nextId, otps, users } from "@/server/db";
+import { ensureIndexes, nextId, users } from "@/server/db";
 import { fail, hashPassword, isEmail, normEmail, normPhone, ok } from "@/server/auth";
-
-/**
- * Fixed demo OTP until an SMS gateway is connected. Override with
- * DEFAULT_OTP in `.env.local`, or swap this for a random code once real
- * messages are being sent.
- */
-const DEFAULT_OTP = process.env.DEFAULT_OTP ?? "123456";
+import { issueOtp } from "@/server/sms";
 
 /**
  * Next account code, e.g. `U-2214`. Drawn from a counter rather than the
@@ -71,18 +64,14 @@ export async function POST(request: Request) {
     lastLoginAt: null,
   });
 
-  const code = DEFAULT_OTP;
-  const otpCol = await otps();
-  await otpCol.deleteMany({ phone, purpose: "registration" });
-  await otpCol.insertOne({
-    phone,
-    codeHash: await bcrypt.hash(code, 10),
-    purpose: "registration",
-    attempts: 0,
-    expiresAt: new Date(Date.now() + 10 * 60_000),
-    createdAt: now,
+  // The account already exists, so a failed send is not a failed sign-up:
+  // the OTP screen opens either way and "Resend" tries again.
+  const otp = await issueOtp(phone, "registration");
+  return ok({
+    message: otp.error
+      ? `Account created, but ${otp.error.charAt(0).toLowerCase()}${otp.error.slice(1)}`
+      : "Registered. Verify the OTP sent to your mobile.",
+    // Only present while no SMS gateway is configured.
+    ...(otp.devCode ? { devOtp: otp.devCode } : {}),
   });
-
-  // No SMS gateway yet, so the code is echoed back for testing.
-  return ok({ message: "Registered. Verify the OTP sent to your mobile.", devOtp: code });
 }

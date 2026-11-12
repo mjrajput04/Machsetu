@@ -11,11 +11,9 @@ class AuthService {
 
   static final AuthService instance = AuthService._();
 
-  /// Demo code shown on the OTP screen while there is no SMS gateway. The
-  /// server also returns the real code as `devOtp` for testing.
-  static const String demoOtp = '123456';
-
-  /// Last OTP the server issued, so the UI can surface it in demo mode.
+  /// The code the server echoes back as `devOtp` while it has no SMS gateway
+  /// configured, so the OTP screen can show it. Null once real SMS is live —
+  /// the code then only ever reaches the user's phone.
   String? lastIssuedOtp;
 
   /// Signs in with either an email address or a 10-digit mobile number.
@@ -60,13 +58,17 @@ class AuthService {
   }
 
   /// Requests a fresh registration code.
-  Future<String> sendOtp(String phone) async {
+  ///
+  /// Fails with the server's reason when the code could not be sent — for
+  /// example when "Resend" is tapped again too quickly.
+  Future<AuthResult> sendOtp(String phone) async {
     final result = await ApiClient.instance.post(
       '/api/auth/resend-otp',
       body: {'phone': phone},
     );
-    lastIssuedOtp = result.data['devOtp']?.toString() ?? demoOtp;
-    return lastIssuedOtp!;
+    if (!result.ok) return AuthResult.failure(result.message);
+    lastIssuedOtp = result.data['devOtp']?.toString();
+    return const AuthResult.success();
   }
 
   /// Confirms the registration code and starts the session.

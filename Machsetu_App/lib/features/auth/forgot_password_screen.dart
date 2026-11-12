@@ -35,9 +35,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _loading = true);
     final phone = _phone.text.trim();
-    await AuthService.instance.sendOtp(phone);
+    final result = await AuthService.instance.sendOtp(phone);
     if (!mounted) return;
     setState(() => _loading = false);
+
+    if (!result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message ?? 'Could not send the code')),
+      );
+      return;
+    }
 
     Navigator.of(context).pushNamed(
       AppRoutes.otpVerify,
