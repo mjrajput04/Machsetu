@@ -37,11 +37,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     setState(() => _loading = true);
     // Recovery goes through the verified phone, so there is no old password
-    // to supply — the API treats the OTP session as the proof.
-    final result = await AuthService.instance.resetPassword(
-      currentPassword: _password.text,
-      newPassword: _password.text,
-    );
+    // to supply — the reset code verified on the previous screen is the proof.
+    final result = await AuthService.instance.setNewPassword(_password.text);
     if (!mounted) return;
     setState(() => _loading = false);
 

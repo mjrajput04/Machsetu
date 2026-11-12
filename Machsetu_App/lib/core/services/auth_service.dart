@@ -90,6 +90,55 @@ class AuthService {
     return const AuthResult.success();
   }
 
+  /// Short-lived proof that the phone was just verified for a password
+  /// reset. Only the reset-password call accepts it.
+  String? _resetToken;
+
+  /// "Forgot password" step 1: sends a reset code to the account's mobile.
+  /// Also used by the OTP screen's "Resend" while resetting.
+  Future<AuthResult> requestPasswordReset(String phone) async {
+    final result = await ApiClient.instance.post(
+      '/api/auth/forgot-password',
+      body: {'phone': phone},
+    );
+    if (!result.ok) return AuthResult.failure(result.message);
+    lastIssuedOtp = result.data['devOtp']?.toString();
+    return const AuthResult.success();
+  }
+
+  /// "Forgot password" step 2: checks the reset code.
+  Future<AuthResult> verifyResetOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final result = await ApiClient.instance.post(
+      '/api/auth/verify-reset-otp',
+      body: {'phone': phone, 'otp': otp},
+    );
+    if (!result.ok) return AuthResult.failure(result.message);
+    _resetToken = result.data['resetToken']?.toString();
+    return const AuthResult.success();
+  }
+
+  /// "Forgot password" step 3: sets the new password. No old password is
+  /// needed — the verified reset code is the proof.
+  Future<AuthResult> setNewPassword(String newPassword) async {
+    final token = _resetToken;
+    if (token == null) {
+      return const AuthResult.failure(
+        'Your reset session expired. Please request a new code.',
+      );
+    }
+
+    final result = await ApiClient.instance.post(
+      '/api/auth/reset-password',
+      body: {'resetToken': token, 'password': newPassword},
+    );
+    if (!result.ok) return AuthResult.failure(result.message);
+    _resetToken = null;
+    return const AuthResult.success();
+  }
+
   /// Changes the password for the signed-in account.
   Future<AuthResult> resetPassword({
     required String currentPassword,

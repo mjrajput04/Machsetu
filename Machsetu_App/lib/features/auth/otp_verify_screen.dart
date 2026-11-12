@@ -90,10 +90,16 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
       _hasError = false;
     });
 
-    final result = await AuthService.instance.verifyOtp(
-      phone: widget.args.phone,
-      otp: _code,
-    );
+    final isReset = widget.args.purpose == OtpPurpose.resetPassword;
+    final result = isReset
+        ? await AuthService.instance.verifyResetOtp(
+            phone: widget.args.phone,
+            otp: _code,
+          )
+        : await AuthService.instance.verifyOtp(
+            phone: widget.args.phone,
+            otp: _code,
+          );
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -126,7 +132,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   Future<void> _resend() async {
     if (_secondsLeft > 0 || _resending) return;
     setState(() => _resending = true);
-    final result = await AuthService.instance.sendOtp(widget.args.phone);
+    final result = widget.args.purpose == OtpPurpose.resetPassword
+        ? await AuthService.instance.requestPasswordReset(widget.args.phone)
+        : await AuthService.instance.sendOtp(widget.args.phone);
     if (!mounted) return;
     setState(() => _resending = false);
     if (!result.ok) {

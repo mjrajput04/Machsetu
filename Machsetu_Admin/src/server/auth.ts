@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 import type { UserDoc } from "./db";
@@ -40,6 +41,45 @@ export function readToken(header: string | null): TokenPayload | null {
   } catch {
     return null;
   }
+}
+
+/* ------------------------------------------------------- password reset -- */
+
+/*
+ * A reset token proves the holder just verified the account's phone by OTP.
+ * It is signed with a key of its own, so it can never pass `readToken` and
+ * open any other endpoint, and it carries a fingerprint of the current
+ * password hash, so it stops working the moment the password changes.
+ */
+const RESET_SECRET = `${SECRET}:password-reset`;
+
+function hashFingerprint(passwordHash: string): string {
+  return createHash("sha256").update(passwordHash).digest("hex").slice(0, 16);
+}
+
+export function signResetToken(user: UserDoc): string {
+  return jwt.sign(
+    { sub: user.code, h: hashFingerprint(user.passwordHash) },
+    RESET_SECRET,
+    { expiresIn: "15m" },
+  );
+}
+
+/** True when the token was issued for this user and is still usable. */
+export function readResetToken(token: string, user: UserDoc | null): boolean {
+  if (!user) return false;
+  try {
+    const payload = jwt.verify(token, RESET_SECRET) as { sub: string; h: string };
+    return payload.sub === user.code && payload.h === hashFingerprint(user.passwordHash);
+  } catch {
+    return false;
+  }
+}
+
+/** Reads the user code out of a reset token without trusting it yet. */
+export function resetTokenSubject(token: string): string | null {
+  const decoded = jwt.decode(token) as { sub?: unknown } | null;
+  return typeof decoded?.sub === "string" ? decoded.sub : null;
 }
 
 /* --------------------------------------------------------------- shapes -- */

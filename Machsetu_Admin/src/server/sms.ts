@@ -151,3 +151,31 @@ export async function issueOtp(
   const error = await deliver(phone, code);
   return { error, devCode: null };
 }
+
+/**
+ * Checks a code against the outstanding OTP for a number and, when it
+ * matches, uses it up. Returns null on success or the message to show.
+ */
+export async function consumeOtp(
+  phone: string,
+  purpose: "registration" | "reset",
+  code: string,
+): Promise<string | null> {
+  const col = await otps();
+  const record = await col.findOne({ phone, purpose });
+  if (!record) return "No code was requested for this number. Please resend.";
+  if (record.expiresAt.getTime() < Date.now()) {
+    await col.deleteOne({ _id: record._id });
+    return "This code has expired. Please resend.";
+  }
+  if (record.attempts >= 5) {
+    await col.deleteOne({ _id: record._id });
+    return "Too many attempts. Please resend a new code.";
+  }
+  if (!(await bcrypt.compare(code, record.codeHash))) {
+    await col.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+    return "The code you entered is incorrect";
+  }
+  await col.deleteOne({ _id: record._id });
+  return null;
+}

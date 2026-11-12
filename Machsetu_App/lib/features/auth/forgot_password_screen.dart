@@ -35,7 +35,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _loading = true);
     final phone = _phone.text.trim();
-    final result = await AuthService.instance.sendOtp(phone);
+    final result = await AuthService.instance.requestPasswordReset(phone);
     if (!mounted) return;
     setState(() => _loading = false);
 
